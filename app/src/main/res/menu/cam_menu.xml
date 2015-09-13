@@ -1,0 +1,37 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/zoom_in"
+        android:title="In zoom"/>
+
+    <item android:id="@+id/zoom_out"
+        android:title="Out zoom"/>
+
+    <item android:id="@+id/zoom_max"
+          android:title="Max zoom"/>
+
+    <item android:id="@+id/zoom_reset"
+          android:title="Reset zoom"/>
+
+    <item android:id="@+id/show_overlay"
+          android:title="Show overlay"/>
+
+    <item android:id="@+id/hide_overlay"
+          android:title="Hide overlay"/>
+
+    <item android:id="@+id/take_picture"
+          android:title="Take a picture"/>
+
+    <item android:id="@+id/record_video"
+          android:title="Record a video"/>
+
+    <item android:id="@+id/stop_video"
+          android:title="Stop video"/>
+
+    <item android:id="@+id/mode_video"
+          android:title="Video mode"/>
+
+    <item android:id="@+id/mode_camera"
+          android:title="Camera mode"/>
+
+    <item android:id="@+id/close_app"
+          android:title="Close"/>
+</menu>
