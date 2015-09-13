@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="valerino.vgcamera" >
+
     <uses-permission android:name="com.google.android.glass.permission.DEVELOPMENT" />
     <uses-permission android:name="android.permission.CAMERA" />
+
     <uses-feature android:name="android.hardware.camera" />
     <uses-feature android:name="android.hardware.camera.autofocus" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -13,17 +16,35 @@
             android:name=".MainActivity"
             android:icon="@drawable/ic_glass_logo"
             android:immersive="true"
-            android:label="VGCamera" >
+            android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="com.google.android.glass.action.VOICE_TRIGGER" />
             </intent-filter>
+
             <meta-data
                 android:name="com.google.android.glass.VoiceTrigger"
                 android:resource="@xml/my_voice_trigger" />
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".TakenActivity"
+            android:icon="@drawable/ic_glass_logo"
+            android:immersive="true"
+            android:parentActivityName=".MainActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="valerino.vgcamera.MainActivity" />
+        </activity>
+        <activity
+            android:name=".OptionsScroller"
+            android:icon="@drawable/ic_glass_logo"
+            android:immersive="true"
+            android:parentActivityName=".MainActivity" >
         </activity>
     </application>
 
