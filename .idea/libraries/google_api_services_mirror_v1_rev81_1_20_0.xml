@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="google-api-services-mirror-v1-rev81-1.20.0">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.google.apis/google-api-services-mirror/v1-rev81-1.20.0/94189f5763c7ef86c395ebe9dc63ad86e66ad81f/google-api-services-mirror-v1-rev81-1.20.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.google.apis/google-api-services-mirror/v1-rev81-1.20.0/932024711b29cd6323b0d4fb1ff802bfb388fd5e/google-api-services-mirror-v1-rev81-1.20.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

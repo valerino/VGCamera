@@ -1,25 +1,42 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/zoom_in"
-        android:title="Zoom more"/>
+    <item android:id="@+id/take_picture" android:title="@string/take_picture"/>
 
-    <item android:id="@+id/zoom_out"
-        android:title="Zoom less"/>
+    <item android:id="@+id/record_video" android:title="@string/take_video"/>
 
-    <item android:id="@+id/zoom_toggle"
-          android:title="Toggle maxzoom"/>
+    <item android:id="@+id/stop_video" android:title="@string/stop"/>
 
-    <item android:id="@+id/toggle_overlay"
-          android:title="Toggle overlay"/>
+    <item android:id="@+id/options" android:title="@string/options">
+        <menu>
+            <item android:id="@+id/menu_location" android:title="@string/location">
+                <menu>
+                    <item android:id="@+id/location_on" android:title="@string/location_on"/>
+                    <item android:id="@+id/location_off" android:title="@string/location_off"/>
+                </menu>
+            </item>
 
-    <item android:id="@+id/take_picture"
-          android:title="Take a picture"/>
+            <item android:id="@+id/menu_storage" android:title="@string/storage">
+                <menu>
+                    <item android:id="@+id/autosave_on" android:title="@string/autosave_on"/>
+                    <item android:id="@+id/autosave_off" android:title="@string/autosave_off"/>
+                </menu>
+            </item>
 
-    <item android:id="@+id/record_video"
-          android:title="Record a video"/>
+            <item android:id="@+id/menu_zoom" android:title="@string/zoom">
+                <menu>
+                    <item android:id="@+id/zoom_in" android:title="@string/in" />
+                    <item android:id="@+id/zoom_out" android:title="@string/out" />
+                    <item android:id="@+id/zoom_max" android:title="@string/max" />
+                    <item android:id="@+id/zoom_reset" android:title="@string/reset" />
+                </menu>
+            </item>
 
-    <item android:id="@+id/stop_video"
-          android:title="Stop video"/>
-
-    <item android:id="@+id/close_app"
-          android:title="Close"/>
+            <item android:id="@+id/menu_overlay" android:title="@string/overlay">
+                <menu>
+                    <item android:id="@+id/overlay_on" android:title="@string/overlay_on" />
+                    <item android:id="@+id/overlay_off" android:title="@string/overlay_off" />
+                </menu>
+            </item>
+        </menu>
+    </item>
+    <item android:id="@+id/close_app" android:title="@string/close"/>
 </menu>

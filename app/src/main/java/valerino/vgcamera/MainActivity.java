@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -26,24 +25,51 @@ public class MainActivity extends Activity {
     private GestureDetector _gestureDetector;
 
     /**
-     * set the zoom label if a zoom factor > 0 has been set
+     * set labels for the overlay
      */
-    public void setZoomLabel() {
-        if (AppConfiguration.instance().overlayMode() == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY) {
-            // only if we're in overlay mode
-            TextView tv = (TextView) findViewById(R.id.zoom);
-            int zoom = CamController.instance(this).camera().getParameters().getZoom();
-            if (zoom == 0) {
-                // no zoom
+    public void setOverlayLabels() {
+        if (AppConfiguration.instance(this).overlayMode() == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY) {
+            TextView tv;
+            try {
+                // only if we're in overlay mode, set zoom label
+                tv = (TextView) findViewById(R.id.zoom);
+                int zoom = CamController.instance(this).camera().getParameters().getZoom();
+                if (zoom == 0) {
+                    // no zoom
+                    tv.setText("");
+                } else {
+                    tv.setText(CamController.instance(this).camera().getParameters().getZoom() + "x");
+                }
+            }
+            catch (Exception e) {
+                // camera may not be set
+            }
+
+            // set location label
+            tv = (TextView) findViewById(R.id.location);
+            if (AppConfiguration.instance(this).addLocation()) {
+                // location enabled
+                tv.setText(" LOC");
+            }
+            else {
                 tv.setText("");
-            } else {
-                tv.setText(CamController.instance(this).camera().getParameters().getZoom() + "x");
+            }
+
+            // set autosave label
+            tv = (TextView) findViewById(R.id.autoSave);
+            if (AppConfiguration.instance(this).autoSave()) {
+                // autosavre enabled
+                tv.setText(" SAV");
+            }
+            else {
+                tv.setText("");
             }
         }
     }
 
+
     /**
-     * here we react to specific voice/touch commands to control the camera
+     * here we react to specific voice commands to control the camera
      */
     @Override
     public boolean onMenuItemSelected(int featureId, MenuItem item) {
@@ -52,30 +78,70 @@ public class MainActivity extends Activity {
                 case R.id.zoom_in:
                     // zoom the image in
                     CamController.instance(this).zoomIn();
-                    setZoomLabel();
+                    setOverlayLabels();
                     break;
 
                 case R.id.zoom_out:
                     // zoom the image out
                     CamController.instance(this).zoomOut();
-                    setZoomLabel();
+                    setOverlayLabels();
                     break;
 
-/*                case R.id.zoom_toggle:
-                    // set zoom back to 0 or max, depending on current value
-                    android.hardware.Camera.Parameters params = _camController.camera().getParameters();
-                    int current_zoom = params.getZoom();
+                case R.id.zoom_max: {
+                    // toggle max zoom on
+                    AppConfiguration.instance(this).setMaxZoomMode(true);
+                    android.hardware.Camera.Parameters params = CamController.instance(this).camera().getParameters();
                     int max_zoom = params.getMaxZoom();
-                    if (current_zoom == max_zoom) {
-                        _camController.setZoom(0);
-                    }
-                    else {
-                        _camController.setZoom(max_zoom);
-                    }
-                    setZoomLabel();
+                    CamController.instance(this).setZoom(max_zoom);
+                    setOverlayLabels();
+                    break;
+                }
+                case R.id.zoom_reset:
+                    // toggle max zoom off
+                    AppConfiguration.instance(this).setMaxZoomMode(false);
+                    android.hardware.Camera.Parameters params = CamController.instance(this).camera().getParameters();
+                    CamController.instance(this).setZoom(0);
+                    setOverlayLabels();
                     break;
 
-*/
+                case R.id.overlay_on:
+                    // toggle overlay off
+                    toggleOverlay(true);
+                    break;
+
+                case R.id.overlay_off:
+                    // toggle overlay off
+                    toggleOverlay(false);
+                    break;
+
+                case R.id.location_on: {
+                    // add location to media, on
+                    AppConfiguration.instance(this).setAddLocation(true);
+                    setOverlayLabels();
+                    break;
+                }
+
+                case R.id.location_off: {
+                    // add location to media, off
+                    AppConfiguration.instance(this).setAddLocation(false);
+                    setOverlayLabels();
+                    break;
+                }
+
+                case R.id.autosave_on: {
+                    // autosave media, on
+                    AppConfiguration.instance(this).setAutoSave(true);
+                    setOverlayLabels();
+                    break;
+                }
+
+                case R.id.autosave_off: {
+                    // autosave media, off
+                    AppConfiguration.instance(this).setAutoSave(false);
+                    setOverlayLabels();
+                    break;
+                }
+
                 case R.id.take_picture:
                     // take a picture
                     CamController.instance(this).snapPicture();
@@ -117,23 +183,9 @@ public class MainActivity extends Activity {
         // ask for 'ok glass' prompt to accept commands
         getWindow().requestFeature(WindowUtils.FEATURE_VOICE_COMMANDS);
 
-        // Handle the TAP event.
-        /*mCardScroller.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                // Plays disallowed sound to indicate that TAP actions are not supported.
-                AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                am.playSoundEffect(Sounds.DISALLOWED);
-            }
-        });*/
-
-        // by default, we use our own layout with cam_menu and mode indicator, using the EMBED_INSIDE
-        // feature of the CardBuilder
-        setupLayout(true);
-
-        // set mode/zoom text
-        TextView tv = (TextView) findViewById(R.id.zoom);
-        tv.setText("");
+        // setup the layout
+        AppConfiguration.OVERLAY_MODE overlay = AppConfiguration.instance(this).overlayMode();
+        setupLayout(overlay == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
 
         // set touch/gestures detector, will be catched in onGenericMotionEvent() which, in turn,
         // will use the gesture detector's listener logic to react.
@@ -160,6 +212,9 @@ public class MainActivity extends Activity {
         // setup the listener to show/hide the preview
         CamController.instance(this).setView(view);
         view.setSurfaceTextureListener(CamController.instance(this));
+
+        // set the overlay labels if we're in overlay mode
+        setOverlayLabels();
     }
 
     /**
@@ -170,7 +225,7 @@ public class MainActivity extends Activity {
     private void setupLayout(boolean overlay) {
         if (overlay) {
             // use the overlay
-            AppConfiguration.instance().setOverlayMode(AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
+            AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
             CardBuilder cb = new CardBuilder(this, CardBuilder.Layout.EMBED_INSIDE);
             cb.setEmbeddedLayout(R.layout.preview_layout);
             setContentView(cb.getView());
@@ -178,13 +233,29 @@ public class MainActivity extends Activity {
             setupLayoutInternal(_capView);
         } else {
             // no overlay, just use a new TextureView
-            AppConfiguration.instance().setOverlayMode(AppConfiguration.OVERLAY_MODE.HIDE_OVERLAY);
+            AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.HIDE_OVERLAY);
             if (_capViewNoOVerlay == null) {
                 // reuse the previous
                 _capViewNoOVerlay = new TextureView(this);
             }
             setContentView(_capViewNoOVerlay);
             setupLayoutInternal(_capViewNoOVerlay);
+        }
+    }
+
+    /**
+     * toggle the overlay
+     * @param enable true to enable overlay
+     */
+    private void toggleOverlay(boolean enable) {
+        if (enable) {
+            // overlay on
+            AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
+            setupLayout(true);
+        } else {
+            // overlay off
+            AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.HIDE_OVERLAY);
+            setupLayout(false);
         }
     }
 
@@ -210,23 +281,17 @@ public class MainActivity extends Activity {
                 break;
             case OptionsScroller.CHOICE_TOGGLE_OVERLAY:
                 // toggle overlay on/off
-                if (AppConfiguration.instance().overlayMode() == AppConfiguration.OVERLAY_MODE.HIDE_OVERLAY) {
-                    AppConfiguration.instance().setOverlayMode(AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
-                    setupLayout(true);
-                } else {
-                    AppConfiguration.instance().setOverlayMode(AppConfiguration.OVERLAY_MODE.HIDE_OVERLAY);
-                    setupLayout(false);
-                }
+                AppConfiguration.OVERLAY_MODE overlay = AppConfiguration.instance(this).overlayMode();
+                toggleOverlay(overlay == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY ? false : true);
                 break;
             case OptionsScroller.CHOICE_MAX_ZOOM: {
                 // toggle max zoom on
-                AppConfiguration.instance().setMaxZoomMode(true);
+                AppConfiguration.instance(this).setMaxZoomMode(true);
                 break;
             }
-
             case OptionsScroller.CHOICE_RESET_ZOOM: {
                 // reset zoom
-                AppConfiguration.instance().setMaxZoomMode(false);
+                AppConfiguration.instance(this).setMaxZoomMode(false);
                 break;
             }
 
@@ -256,14 +321,14 @@ public class MainActivity extends Activity {
                     int currentZoom = CamController.instance(ctx).camera().getParameters().getZoom();
                     currentZoom += 2;
                     CamController.instance(ctx).setZoom(currentZoom);
-                    setZoomLabel();
+                    setOverlayLabels();
                     return true;
                 } else if (gesture == Gesture.SWIPE_LEFT) {
                     // zoom out
                     int currentZoom = CamController.instance(ctx).camera().getParameters().getZoom();
                     currentZoom -= 2;
                     CamController.instance(ctx).setZoom(currentZoom);
-                    setZoomLabel();
+                    setOverlayLabels();
                     return true;
                 } else if (gesture == Gesture.TAP) {
                     // show options cards
@@ -272,15 +337,6 @@ public class MainActivity extends Activity {
                     return true;
                 }
 
-                return false;
-            }
-        });
-
-        gd.setScrollListener(new GestureDetector.ScrollListener() {
-            @Override
-            public boolean onScroll(float displacement, float delta, float velocity) {
-                // do something on scrolling, but I'm not.
-                Log.d(this.getClass().getName(), "scrolling detected");
                 return false;
             }
         });

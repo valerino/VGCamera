@@ -1,4 +1,31 @@
 <resources>
     <string name="app_name">VGCamera</string>
     <string name="glass_voice_trigger">VGCamera</string>
+
+    <string name="options">Options</string>
+    <string name="overlay">Overlay</string>
+    <string name="zoom">Zoom</string>
+    <string name="location">Location</string>
+    <string name="storage">Storage</string>
+
+    <string name="in">In</string>
+    <string name="out">Out</string>
+    <string name="max">Max</string>
+    <string name="reset">Reset</string>
+
+    <string name="overlay_on">Activate Overlay</string>
+    <string name="overlay_off">Overlay Off</string>
+    <string name="autosave_on">Activate Autosave</string>
+    <string name="autosave_off">Autosave Off</string>
+    <string name="location_on">Activate Location</string>
+    <string name="location_off">Location Off</string>
+
+    <string name="take_picture">Take a picture</string>
+    <string name="take_video">Record a video</string>
+    <string name="stop">Stop Video</string>
+    <string name="close">Close</string>
+
+    <string name="share">Share</string>
+    <string name="save">Save</string>
+    <string name="back">Back</string>
 </resources>
