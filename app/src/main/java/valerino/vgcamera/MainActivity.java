@@ -4,16 +4,19 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.TextureView;
+import android.view.View;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import com.google.android.glass.touchpad.Gesture;
 import com.google.android.glass.touchpad.GestureDetector;
 import com.google.android.glass.view.WindowUtils;
-import com.google.android.glass.widget.CardBuilder;
 
 /**
  * valerino glass camera
@@ -21,7 +24,6 @@ import com.google.android.glass.widget.CardBuilder;
  */
 public class MainActivity extends Activity {
     private TextureView _capView;
-    private TextureView _capViewNoOVerlay;
     private GestureDetector _gestureDetector;
 
     /**
@@ -32,7 +34,7 @@ public class MainActivity extends Activity {
             TextView tv;
             try {
                 // only if we're in overlay mode, set zoom label
-                tv = (TextView) findViewById(R.id.zoom);
+                tv = (TextView) findViewById(R.id.zoomText);
                 int zoom = CamController.instance(this).camera().getParameters().getZoom();
                 if (zoom == 0) {
                     // no zoom
@@ -45,8 +47,17 @@ public class MainActivity extends Activity {
                 // camera may not be set
             }
 
+            // smooth zoom on/off
+            tv = (TextView) findViewById(R.id.smoothZoomText);
+            if (AppConfiguration.instance(this).smoothZoom()) {
+                tv.setText(" SMZ");
+            }
+            else {
+                tv.setText("");
+            }
+
             // set location label
-            tv = (TextView) findViewById(R.id.location);
+            tv = (TextView) findViewById(R.id.locationText);
             if (AppConfiguration.instance(this).addLocation()) {
                 // location enabled
                 tv.setText(" LOC");
@@ -56,7 +67,7 @@ public class MainActivity extends Activity {
             }
 
             // set autosave label
-            tv = (TextView) findViewById(R.id.autoSave);
+            tv = (TextView) findViewById(R.id.autoSaveText);
             if (AppConfiguration.instance(this).autoSave()) {
                 // autosavre enabled
                 tv.setText(" SAV");
@@ -67,6 +78,45 @@ public class MainActivity extends Activity {
         }
     }
 
+    /**
+     * toggle the max zoom mode
+     */
+    void toggleMaxZoom() {
+        boolean currentMaxZoomMode = AppConfiguration.instance(this).maxZoomMode();
+        AppConfiguration.instance(this).setMaxZoomMode(!currentMaxZoomMode);
+        CamController.instance(this).toggleMaxZoom();
+        if (!AppConfiguration.instance(this).smoothZoom()) {
+            // when smooth zooming, the listener will handle updating label
+            setOverlayLabels();
+        }
+    }
+
+    /**
+     * toggle smooth zoom feature on/off
+     */
+    void toggleSmoothZoom() {
+        boolean currentSmoothZoomMode = AppConfiguration.instance(this).smoothZoom();
+        AppConfiguration.instance(this).setSmoothZoom(!currentSmoothZoomMode);
+        setOverlayLabels();
+    }
+
+    /**
+     * toggle autosave feature on/off
+     */
+    void toggleAutoSave() {
+        boolean currentAutosave = AppConfiguration.instance(this).autoSave();
+        AppConfiguration.instance(this).setAutoSave(!currentAutosave);
+        setOverlayLabels();
+    }
+
+    /**
+     * toggle geotagging on/off
+     */
+    void toggleGeotagging() {
+        boolean currentGeotagging = AppConfiguration.instance(this).addLocation();
+        AppConfiguration.instance(this).setAddLocation(!currentGeotagging);
+        setOverlayLabels();
+    }
 
     /**
      * here we react to specific voice commands to control the camera
@@ -78,67 +128,47 @@ public class MainActivity extends Activity {
                 case R.id.zoom_in:
                     // zoom the image in
                     CamController.instance(this).zoomIn();
-                    setOverlayLabels();
+                    if (!AppConfiguration.instance(this).smoothZoom()) {
+                        // when smooth zooming, the listener will handle updating label
+                        setOverlayLabels();
+                    }
                     break;
 
                 case R.id.zoom_out:
                     // zoom the image out
                     CamController.instance(this).zoomOut();
-                    setOverlayLabels();
+                    if (!AppConfiguration.instance(this).smoothZoom()) {
+                        // when smooth zooming, the listener will handle updating label
+                        setOverlayLabels();
+                    }
                     break;
 
-                case R.id.zoom_max: {
-                    // toggle max zoom on
-                    AppConfiguration.instance(this).setMaxZoomMode(true);
-                    android.hardware.Camera.Parameters params = CamController.instance(this).camera().getParameters();
-                    int max_zoom = params.getMaxZoom();
-                    CamController.instance(this).setZoom(max_zoom);
-                    setOverlayLabels();
-                    break;
-                }
-                case R.id.zoom_reset:
-                    // toggle max zoom off
-                    AppConfiguration.instance(this).setMaxZoomMode(false);
-                    android.hardware.Camera.Parameters params = CamController.instance(this).camera().getParameters();
-                    CamController.instance(this).setZoom(0);
-                    setOverlayLabels();
-                    break;
-
-                case R.id.overlay_on:
-                    // toggle overlay off
-                    toggleOverlay(true);
-                    break;
-
-                case R.id.overlay_off:
-                    // toggle overlay off
-                    toggleOverlay(false);
-                    break;
-
-                case R.id.location_on: {
-                    // add location to media, on
-                    AppConfiguration.instance(this).setAddLocation(true);
-                    setOverlayLabels();
+                case R.id.zoom_toggle_max: {
+                    // toggle max zoom on/off
+                    toggleMaxZoom();
                     break;
                 }
 
-                case R.id.location_off: {
-                    // add location to media, off
-                    AppConfiguration.instance(this).setAddLocation(false);
-                    setOverlayLabels();
+                case R.id.zoom_toggle_smooth: {
+                    // toggle smooth zoom on/off
+                    toggleSmoothZoom();
                     break;
                 }
 
-                case R.id.autosave_on: {
-                    // autosave media, on
-                    AppConfiguration.instance(this).setAutoSave(true);
-                    setOverlayLabels();
+                case R.id.toggle_overlay:
+                    // toggle overlay on/off
+                    toggleOverlay();
+                    break;
+
+                case R.id.toggle_location: {
+                    // toggle location on/off
+                    toggleGeotagging();
                     break;
                 }
 
-                case R.id.autosave_off: {
-                    // autosave media, off
-                    AppConfiguration.instance(this).setAutoSave(false);
-                    setOverlayLabels();
+                case R.id.toggle_autosave: {
+                    // toggle autosave on/off
+                    toggleAutoSave();
                     break;
                 }
 
@@ -150,6 +180,7 @@ public class MainActivity extends Activity {
                 case R.id.close_app:
                     // close application
                     CamController.instance(this).stopPreview();
+                    System.gc();
                     finish();
                     break;
 
@@ -183,7 +214,7 @@ public class MainActivity extends Activity {
         // ask for 'ok glass' prompt to accept commands
         getWindow().requestFeature(WindowUtils.FEATURE_VOICE_COMMANDS);
 
-        // setup the layout
+        // setup the layout, showing overlay if OVERLAY_MODE.SHOW_OVERLAY is set in the preferences
         AppConfiguration.OVERLAY_MODE overlay = AppConfiguration.instance(this).overlayMode();
         setupLayout(overlay == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
 
@@ -205,13 +236,13 @@ public class MainActivity extends Activity {
     /**
      * setup the layout (common)
      */
-    private void setupLayoutInternal(TextureView view) {
+    private void setupLayoutInternal() {
         // screen must be always on
-        view.setKeepScreenOn(true);
+        _capView.setKeepScreenOn(true);
 
         // setup the listener to show/hide the preview
-        CamController.instance(this).setView(view);
-        view.setSurfaceTextureListener(CamController.instance(this));
+        CamController.instance(this).setView(_capView);
+        _capView.setSurfaceTextureListener(CamController.instance(this));
 
         // set the overlay labels if we're in overlay mode
         setOverlayLabels();
@@ -223,45 +254,47 @@ public class MainActivity extends Activity {
      * @param overlay if true, shows the overlay
      */
     private void setupLayout(boolean overlay) {
+        // set the main layout
+        setContentView(R.layout.preview_layout);
+
+        // this is the texture view we'll blit on
+        _capView = (TextureView) findViewById(R.id.cameraTextureView);
+
         if (overlay) {
             // use the overlay
             AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
-            CardBuilder cb = new CardBuilder(this, CardBuilder.Layout.EMBED_INSIDE);
-            cb.setEmbeddedLayout(R.layout.preview_layout);
-            setContentView(cb.getView());
-            _capView = (TextureView) findViewById(R.id.preview);
-            setupLayoutInternal(_capView);
-        } else {
-            // no overlay, just use a new TextureView
-            AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.HIDE_OVERLAY);
-            if (_capViewNoOVerlay == null) {
-                // reuse the previous
-                _capViewNoOVerlay = new TextureView(this);
-            }
-            setContentView(_capViewNoOVerlay);
-            setupLayoutInternal(_capViewNoOVerlay);
+
+            // inflate the overlays layout over the preview one
+            LayoutInflater inflater = LayoutInflater.from(getBaseContext());
+            View overlays = inflater.inflate(R.layout.overlay_layout, null);
+            WindowManager.LayoutParams layoutParamsControl = new WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT);
+            addContentView(overlays, layoutParamsControl);
         }
+        else {
+            // no overlay
+            AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.HIDE_OVERLAY);
+        }
+        // finish setup
+        setupLayoutInternal();
     }
 
     /**
      * toggle the overlay
-     * @param enable true to enable overlay
      */
-    private void toggleOverlay(boolean enable) {
-        if (enable) {
-            // overlay on
-            AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
-            setupLayout(true);
-        } else {
-            // overlay off
-            AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.HIDE_OVERLAY);
+    private void toggleOverlay() {
+        if (AppConfiguration.instance(this).overlayMode() == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY) {
+            // hide overlay
             setupLayout(false);
+        }
+        else {
+            // show overlay
+            setupLayout(true);
         }
     }
 
     /**
-     * cacthes results from the options activity
-     *
+     * cacthes results from the options activity (handles touchpad controls)
      * @param requestCode
      * @param resultCode
      * @param data
@@ -277,21 +310,31 @@ public class MainActivity extends Activity {
         switch (res) {
             case OptionsScroller.CHOICE_EXIT:
                 // exit app
+                System.gc();
                 finish();
                 break;
             case OptionsScroller.CHOICE_TOGGLE_OVERLAY:
-                // toggle overlay on/off
-                AppConfiguration.OVERLAY_MODE overlay = AppConfiguration.instance(this).overlayMode();
-                toggleOverlay(overlay == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY ? false : true);
+                // toggle overlay
+                toggleOverlay();
                 break;
-            case OptionsScroller.CHOICE_MAX_ZOOM: {
-                // toggle max zoom on
-                AppConfiguration.instance(this).setMaxZoomMode(true);
+            case OptionsScroller.CHOICE_TOGGLE_MAXZOOM: {
+                // toggle max zoom
+                toggleMaxZoom();
                 break;
             }
-            case OptionsScroller.CHOICE_RESET_ZOOM: {
-                // reset zoom
-                AppConfiguration.instance(this).setMaxZoomMode(false);
+            case OptionsScroller.CHOICE_TOGGLE_SMOOTHZOOM: {
+                // toggle smooth zoom
+                toggleSmoothZoom();
+                break;
+            }
+            case OptionsScroller.CHOICE_TOGGLE_AUTOSAVE: {
+                // toggle autosave
+                toggleAutoSave();
+                break;
+            }
+            case OptionsScroller.CHOICE_TOGGLE_LOCATION: {
+                // toggle geotagging
+                toggleGeotagging();
                 break;
             }
 
@@ -303,6 +346,16 @@ public class MainActivity extends Activity {
     @Override
     public boolean onGenericMotionEvent(MotionEvent event) {
         return _gestureDetector.onMotionEvent(event);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_CAMERA) {
+            // take a picture when the camera button is pressed
+            CamController.instance(this).snapPicture();
+            return false;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     /**
@@ -318,17 +371,19 @@ public class MainActivity extends Activity {
             public boolean onGesture(Gesture gesture) {
                 if (gesture == Gesture.SWIPE_RIGHT) {
                     // zoom in
-                    int currentZoom = CamController.instance(ctx).camera().getParameters().getZoom();
-                    currentZoom += 2;
-                    CamController.instance(ctx).setZoom(currentZoom);
-                    setOverlayLabels();
+                    CamController.instance(ctx).zoomIn();
+                    if (!AppConfiguration.instance(ctx).smoothZoom()) {
+                        // when smooth zooming, the listener will handle updating label
+                        setOverlayLabels();
+                    }
                     return true;
                 } else if (gesture == Gesture.SWIPE_LEFT) {
                     // zoom out
-                    int currentZoom = CamController.instance(ctx).camera().getParameters().getZoom();
-                    currentZoom -= 2;
-                    CamController.instance(ctx).setZoom(currentZoom);
-                    setOverlayLabels();
+                    CamController.instance(ctx).zoomOut();
+                    if (!AppConfiguration.instance(ctx).smoothZoom()) {
+                        // when smooth zooming, the listener will handle updating label
+                        setOverlayLabels();
+                    }
                     return true;
                 } else if (gesture == Gesture.TAP) {
                     // show options cards

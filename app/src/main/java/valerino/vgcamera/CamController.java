@@ -7,17 +7,21 @@ import android.hardware.Camera;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.Environment;
 import android.util.Log;
 import android.view.TextureView;
 
+import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 /**
  * controls the camera, singleton
  * Created by valerino on 13/09/15.
  */
-public class CamController implements TextureView.SurfaceTextureListener {
+public class CamController implements Camera.OnZoomChangeListener, TextureView.SurfaceTextureListener {
     private Camera _camera;
     private TextureView _view;
     private Context _context;
@@ -90,6 +94,15 @@ public class CamController implements TextureView.SurfaceTextureListener {
             Log.e(this.getClass().getName(), "setPreviewTexture()", e);
             return;
         }
+
+        // update camera parameters
+        Camera.Parameters params = _camera.getParameters();
+        params.setPreviewFpsRange(30000, 30000);
+        params.setPreviewSize(640, 360);
+        _camera.setZoomChangeListener(this);
+        _camera.setParameters(params);
+
+        // start preview
         _camera.startPreview();
     }
 
@@ -119,24 +132,74 @@ public class CamController implements TextureView.SurfaceTextureListener {
     /**
      * set the camera zoom
      *
-     * @param zoomFactor a zoom factor (must be < camera.zoomMax())
+     * @param zoomFactor a zoom factor (must be <= camera.zoomMax())
      */
     public void setZoom(int zoomFactor) {
+        if (_camera == null) {
+            Log.w(this.getClass().getName(), "camera not yet initialized");
+            return;
+        }
+
         // get parameters and current zoom factor
         Camera.Parameters params = _camera.getParameters();
         if (zoomFactor <= params.getMaxZoom() && zoomFactor >= 0) {
             // set the new zoom factor
-            params.setZoom(zoomFactor);
+            int currentZoom = params.getZoom();
+            Log.d(this.getClass().getName(), "zooming from " + currentZoom + "x to " + zoomFactor + "x");
+            if (AppConfiguration.instance(_context).smoothZoom()) {
+                // zoom smoothly
+                try {
+                    _camera.startSmoothZoom(zoomFactor);
+                }
+                catch (Throwable ex) {
+                    Log.e(this.getClass().getName(), "can't smoothzoom");
+                }
+            }
+            else {
+                // zoom normally
+                params.setZoom(zoomFactor);
+
+                // set back parameters
+                _camera.setParameters(params);
+            }
+        }
+    }
+
+    /**
+     * set zoom to max
+     */
+    public void setMaxZoom() {
+        if (_camera == null) {
+            Log.w(this.getClass().getName(), "camera not yet initialized");
+            return;
         }
 
-        // set back parameters
-        _camera.setParameters(params);
+        Camera.Parameters params = _camera.getParameters();
+        setZoom(params.getMaxZoom());
+    }
+
+    /**
+     * toggle max zoom on/off
+     */
+    public void toggleMaxZoom() {
+        if (AppConfiguration.instance(_context).maxZoomMode()) {
+            // zoom to max
+            setMaxZoom();
+        } else {
+            // no zoom
+            setZoom(0);
+        }
     }
 
     /**
      * zoom the image IN
      */
     public void zoomIn() {
+        if (_camera == null) {
+            Log.w(this.getClass().getName(), "camera not yet initialized");
+            return;
+        }
+
         // get parameters and current cam_menu factor
         Camera.Parameters params = _camera.getParameters();
         int zoom = params.getZoom();
@@ -150,6 +213,11 @@ public class CamController implements TextureView.SurfaceTextureListener {
      * zoom the image OUT
      */
     public void zoomOut() {
+        if (_camera == null) {
+            Log.w(this.getClass().getName(), "camera not yet initialized");
+            return;
+        }
+
         // get parameters and current cam_menu factor
         Camera.Parameters params = _camera.getParameters();
         int zoom = params.getZoom();
@@ -199,12 +267,19 @@ public class CamController implements TextureView.SurfaceTextureListener {
      * takes a picture
      */
     public void snapPicture() {
+        if (_camera == null) {
+            Log.w(this.getClass().getName(), "camera not yet initialized");
+            return;
+        }
+
         // take the picture
+        Camera.Parameters params = _camera.getParameters();
+        params.setPictureSize(2592,1944);
         if (AppConfiguration.instance(_context).addLocation()) {
             // get the last location first
             Location loc = getLocation();
             if (loc != null) {
-                Camera.Parameters params = _camera.getParameters();
+                // update camera parameters
                 params.setGpsAltitude(loc.getAltitude());
                 params.setGpsLongitude(loc.getLongitude());
                 params.setGpsLatitude(loc.getLatitude());
@@ -212,16 +287,27 @@ public class CamController implements TextureView.SurfaceTextureListener {
                 params.setGpsProcessingMethod(loc.getProvider());
             }
             else {
-                Log.w(this.getClass().getName(), "Can't get location");
+                Log.w(this.getClass().getName(), "can't get location");
             }
         }
+        _camera.setParameters(params);
+
         _camera.takePicture(null, null, new Camera.PictureCallback() {
             @Override
             public void onPictureTaken(byte[] bytes, Camera camera) {
+                // save a temporary image
+                String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
+                File tmpFull = new File (Environment.getExternalStorageDirectory(), timeStamp + ".jpg");
+                tmpFull = Utils.bufferToFile(bytes, tmpFull.getAbsolutePath());
+                if (tmpFull == null) {
+                    Log.e(this.getClass().getName(), "can't create temporary file for picture");
+                    return;
+                }
+
                 // show the taken picture
                 Intent intent = new Intent(_context, TakenActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.putExtra("data", bytes);
+                intent.putExtra("tmp_path", tmpFull.getAbsolutePath());
                 _context.startActivity(intent);
             }
         });
@@ -230,17 +316,11 @@ public class CamController implements TextureView.SurfaceTextureListener {
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
         startPreview();
-        android.hardware.Camera.Parameters params = _camera.getParameters();
-        if (AppConfiguration.instance(_context).maxZoomMode()) {
-            // set zoom to max
-            int max_zoom = params.getMaxZoom();
-            setZoom(max_zoom);
-        } else {
-            // no zoom
-            setZoom(0);
-        }
 
-        // set the zoom label
+        // if maxzoom mode is set, we'll start max-zoomed
+        toggleMaxZoom();
+
+        // set the overlay labels in the main activity
         MainActivity hostActivity = (MainActivity) _view.getContext();
         hostActivity.setOverlayLabels();
     }
@@ -259,5 +339,14 @@ public class CamController implements TextureView.SurfaceTextureListener {
     @Override
     public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
 
+    }
+
+    @Override
+    public void onZoomChange(int i, boolean b, Camera camera) {
+        if (AppConfiguration.instance(_context).smoothZoom()) {
+            // update zoom label when smooth zooming
+            MainActivity hostActivity = (MainActivity) _view.getContext();
+            hostActivity.setOverlayLabels();
+        }
     }
 }

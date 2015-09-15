@@ -21,9 +21,12 @@ public class AppConfiguration {
 
     private boolean _maxZoomMode;
 
+    private boolean _smoothZoom;
+
     private boolean _autoSave;
 
     private boolean _addLocation;
+
 
     SharedPreferences _sharedPrefs;
     SharedPreferences.Editor _editor;
@@ -32,6 +35,8 @@ public class AppConfiguration {
     private final static String PREFS_ADD_LOCATION = "add_location";
     private final static String PREFS_AUTOSAVE = "autosave";
     private final static String PREFS_OVERLAY = "overlay";
+    private final static String PREFS_SMOOTH_ZOOM = "smooth_zoom";
+
 
     /**
      * constructor (use instance())
@@ -46,6 +51,8 @@ public class AppConfiguration {
         _addLocation = _sharedPrefs.getBoolean(PREFS_ADD_LOCATION, false);
         _autoSave = _sharedPrefs.getBoolean(PREFS_AUTOSAVE, false);
         _overlayMode = OVERLAY_MODE.valueOf(_sharedPrefs.getString(PREFS_OVERLAY, OVERLAY_MODE.SHOW_OVERLAY.toString()));
+        _smoothZoom = _sharedPrefs.getBoolean(PREFS_SMOOTH_ZOOM, false);
+        _maxZoomMode = false; // this is hardcoded
     }
 
     /**
@@ -73,6 +80,24 @@ public class AppConfiguration {
      */
     public void setMaxZoomMode(boolean enabled) {
         _maxZoomMode = enabled;
+    }
+
+    /**
+     * get the smooth zoom status
+     * @return
+     */
+    public boolean smoothZoom() {
+        return _smoothZoom;
+    }
+
+    /**
+     * enable zooming smoothly
+     * @param enabled true to enable
+     */
+    public void setSmoothZoom(boolean enabled) {
+        _smoothZoom = enabled;
+        _editor.putBoolean(PREFS_SMOOTH_ZOOM, enabled);
+        _editor.commit();
     }
 
     /**

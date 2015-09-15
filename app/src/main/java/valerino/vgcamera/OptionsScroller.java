@@ -29,9 +29,11 @@ public class OptionsScroller extends Activity {
      * these are the ids of the cards
      */
     public static final int CHOICE_TOGGLE_OVERLAY = 0;
-    public static final int CHOICE_MAX_ZOOM = 1;
-    public static final int CHOICE_RESET_ZOOM = 2;
-    public static final int CHOICE_EXIT = 3;
+    public static final int CHOICE_TOGGLE_LOCATION = 1;
+    public static final int CHOICE_TOGGLE_AUTOSAVE = 2;
+    public static final int CHOICE_TOGGLE_MAXZOOM = 3;
+    public static final int CHOICE_TOGGLE_SMOOTHZOOM = 4;
+    public static final int CHOICE_EXIT = 5;
 
     @Override
     protected void onCreate(Bundle bundle) {
@@ -39,8 +41,10 @@ public class OptionsScroller extends Activity {
 
         // create each card
         _cards.add(new CardBuilder(this, CardBuilder.Layout.MENU).setText("Toggle Overlay").setFootnote("Toggle overlay on/off"));
-        _cards.add(new CardBuilder(this, CardBuilder.Layout.MENU).setText("Zoom full").setFootnote("Apply maximum zoom"));
-        _cards.add(new CardBuilder(this, CardBuilder.Layout.MENU).setText("Reset zoom").setFootnote("Reset zoom to 1x"));
+        _cards.add(new CardBuilder(this, CardBuilder.Layout.MENU).setText("Toggle Location").setFootnote("Toggle geotagging on/off"));
+        _cards.add(new CardBuilder(this, CardBuilder.Layout.MENU).setText("Toggle Autosave").setFootnote("Toggle autosave on/off"));
+        _cards.add(new CardBuilder(this, CardBuilder.Layout.MENU).setText("Toggle Zoom max").setFootnote("Toggle max zoom on/off"));
+        _cards.add(new CardBuilder(this, CardBuilder.Layout.MENU).setText("Toggle Smooth zoom").setFootnote("Toggle smooth zoom feature on/off"));
         _cards.add(new CardBuilder(this, CardBuilder.Layout.MENU).setText("Exit").setFootnote("Bye bye :("));
 
         // setup the view
@@ -68,18 +72,28 @@ public class OptionsScroller extends Activity {
                         setResult(RESULT_OK, resIntent);
                         break;
                     case CHOICE_TOGGLE_OVERLAY:
-                        // toggle overlay on/off
+                        // toggle overlay
                         resIntent.putExtra("choice", CHOICE_TOGGLE_OVERLAY);
                         setResult(RESULT_OK, resIntent);
                         break;
-                    case CHOICE_MAX_ZOOM:
-                        // set max zoom
-                        resIntent.putExtra("choice", CHOICE_MAX_ZOOM);
+                    case CHOICE_TOGGLE_MAXZOOM:
+                        // toggle maxzoom
+                        resIntent.putExtra("choice", CHOICE_TOGGLE_MAXZOOM);
                         setResult(RESULT_OK, resIntent);
                         break;
-                    case CHOICE_RESET_ZOOM:
-                        // reset zoom
-                        resIntent.putExtra("choice", CHOICE_RESET_ZOOM);
+                    case CHOICE_TOGGLE_SMOOTHZOOM:
+                        // toggle smooth zoom
+                        resIntent.putExtra("choice", CHOICE_TOGGLE_SMOOTHZOOM);
+                        setResult(RESULT_OK, resIntent);
+                        break;
+                    case CHOICE_TOGGLE_AUTOSAVE:
+                        // toggle autosave
+                        resIntent.putExtra("choice", CHOICE_TOGGLE_AUTOSAVE);
+                        setResult(RESULT_OK, resIntent);
+                        break;
+                    case CHOICE_TOGGLE_LOCATION:
+                        // toggle geotagging
+                        resIntent.putExtra("choice", CHOICE_TOGGLE_LOCATION);
                         setResult(RESULT_OK, resIntent);
                         break;
                     default:
