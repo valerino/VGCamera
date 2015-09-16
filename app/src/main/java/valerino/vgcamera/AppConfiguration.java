@@ -2,6 +2,9 @@ package valerino.vgcamera;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Environment;
+
+import java.io.File;
 
 /**
  * holds app configuration (singleton)
@@ -27,6 +30,7 @@ public class AppConfiguration {
 
     private boolean _addLocation;
 
+    private File _storageFolder;
 
     SharedPreferences _sharedPrefs;
     SharedPreferences.Editor _editor;
@@ -36,7 +40,7 @@ public class AppConfiguration {
     private final static String PREFS_AUTOSAVE = "autosave";
     private final static String PREFS_OVERLAY = "overlay";
     private final static String PREFS_SMOOTH_ZOOM = "smooth_zoom";
-
+    private final static String PREFS_MAX_ZOOM = "max_zoom";
 
     /**
      * constructor (use instance())
@@ -52,7 +56,13 @@ public class AppConfiguration {
         _autoSave = _sharedPrefs.getBoolean(PREFS_AUTOSAVE, false);
         _overlayMode = OVERLAY_MODE.valueOf(_sharedPrefs.getString(PREFS_OVERLAY, OVERLAY_MODE.SHOW_OVERLAY.toString()));
         _smoothZoom = _sharedPrefs.getBoolean(PREFS_SMOOTH_ZOOM, false);
-        _maxZoomMode = false; // this is hardcoded
+        _maxZoomMode = _sharedPrefs.getBoolean(PREFS_MAX_ZOOM, false);
+
+        // this is the storage folder (hardcoded too)
+        _storageFolder = new File (Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera");
+        //_storageFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+
+
     }
 
     /**
@@ -80,6 +90,8 @@ public class AppConfiguration {
      */
     public void setMaxZoomMode(boolean enabled) {
         _maxZoomMode = enabled;
+        _editor.putBoolean(PREFS_MAX_ZOOM, enabled);
+        _editor.commit();
     }
 
     /**
@@ -98,6 +110,14 @@ public class AppConfiguration {
         _smoothZoom = enabled;
         _editor.putBoolean(PREFS_SMOOTH_ZOOM, enabled);
         _editor.commit();
+    }
+
+    /**
+     * the storage folder for the taken media
+     * @return
+     */
+    public File storageFolder() {
+        return _storageFolder;
     }
 
     /**

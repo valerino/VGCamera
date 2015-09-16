@@ -3,6 +3,15 @@
 
     <item android:id="@+id/record_video" android:title="@string/take_video"/>
 
+    <item android:id="@+id/menu_zoom" android:title="@string/zoom">
+        <menu>
+            <item android:id="@+id/zoom_in" android:title="@string/zoom_in" />
+            <item android:id="@+id/zoom_out" android:title="@string/zoom_out" />
+            <item android:id="@+id/zoom_toggle_max" android:title="@string/toggle_max_zoom"/>
+            <item android:id="@+id/zoom_toggle_smooth" android:title="@string/toggle_smooth_zoom"/>
+            <item android:id="@+id/back" android:title="@string/back"/>
+        </menu>
+    </item>
     <item android:id="@+id/stop_video" android:title="@string/stop"/>
 
     <item android:id="@+id/options" android:title="@string/options">
@@ -10,14 +19,7 @@
             <item android:id="@+id/toggle_autosave" android:title="@string/toggle_autosave"/>
             <item android:id="@+id/toggle_location" android:title="@string/toggle_location"/>
             <item android:id="@+id/toggle_overlay" android:title="@string/toggle_overlay"/>
-            <item android:id="@+id/menu_zoom" android:title="@string/zoom">
-                <menu>
-                    <item android:id="@+id/zoom_in" android:title="@string/zoom_in" />
-                    <item android:id="@+id/zoom_out" android:title="@string/zoom_out" />
-                    <item android:id="@+id/zoom_toggle_max" android:title="@string/toggle_max_zoom"/>
-                    <item android:id="@+id/zoom_toggle_smooth" android:title="@string/toggle_smooth_zoom"/>
-                </menu>
-            </item>
+            <item android:id="@+id/back" android:title="@string/back"/>
         </menu>
     </item>
     <item android:id="@+id/close_app" android:title="@string/close"/>

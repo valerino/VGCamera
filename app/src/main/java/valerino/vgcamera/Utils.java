@@ -1,6 +1,9 @@
 package valerino.vgcamera;
 
+import android.app.Activity;
 import android.content.Context;
+
+import com.google.android.glass.widget.CardBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -172,4 +175,30 @@ public class Utils {
         return f;
     }
 
+    /**
+     * create and set a card to the given activity
+     * @param activity an Activity
+     * @param layout the CardBuilder layout to be used
+     * @param text optional text
+     * @param img optional image id
+     */
+    public static void setViewCard(Activity activity, CardBuilder.Layout layout, String text, int img) {
+        CardBuilder card = new CardBuilder(activity, CardBuilder.Layout.ALERT).setText(text).addImage(img);
+        activity.setContentView(card.getView());
+    }
+
+    /**
+     * inject a d-pad event
+     * @param keyCode the keycode
+     * @return true if successful
+     */
+    public static boolean injectKeyEvent(int keyCode) {
+        try {
+            java.lang.Runtime.getRuntime().exec("input keyevent " + Integer.toString(keyCode) + "\n");
+            return true;
+        } catch (IOException e) {
+
+        }
+        return false;
+    }
 }

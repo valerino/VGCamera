@@ -34,16 +34,13 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".TakenActivity"
+            android:name=".OptionsScroller"
             android:icon="@drawable/ic_glass_logo"
             android:immersive="true"
             android:parentActivityName=".MainActivity" >
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="valerino.vgcamera.MainActivity" />
         </activity>
         <activity
-            android:name=".OptionsScroller"
+            android:name=".TakenScroller"
             android:icon="@drawable/ic_glass_logo"
             android:immersive="true"
             android:parentActivityName=".MainActivity" >

@@ -1,15 +1,17 @@
 package valerino.vgcamera;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
+import android.media.AudioManager;
 import android.os.Environment;
 import android.util.Log;
 import android.view.TextureView;
+
+import com.google.android.glass.media.Sounds;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,10 +24,11 @@ import java.util.List;
  * Created by valerino on 13/09/15.
  */
 public class CamController implements Camera.OnZoomChangeListener, TextureView.SurfaceTextureListener {
-    private Camera _camera;
-    private TextureView _view;
-    private Context _context;
+    private Camera _camera = null;
+    private TextureView _view = null;
+    private Context _context = null;
     private static CamController _instance = null;
+    private int _savedZoom = 0;
 
     /**
      * constructor (use instance())
@@ -99,11 +102,26 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
         Camera.Parameters params = _camera.getParameters();
         params.setPreviewFpsRange(30000, 30000);
         params.setPreviewSize(640, 360);
+        params.setZoom(_savedZoom);
         _camera.setZoomChangeListener(this);
         _camera.setParameters(params);
 
         // start preview
         _camera.startPreview();
+
+        // restore any previous zoom set
+        if (AppConfiguration.instance(_context).maxZoomMode()) {
+            // zoom to max
+            setMaxZoom();
+        }
+        else {
+            // restore
+            setZoom(_savedZoom);
+        }
+
+        // update zoom label if needed
+        MainActivity hostActivity = (MainActivity) _view.getContext();
+        hostActivity.updateZoomLabel();
     }
 
     /**
@@ -144,15 +162,13 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
         Camera.Parameters params = _camera.getParameters();
         if (zoomFactor <= params.getMaxZoom() && zoomFactor >= 0) {
             // set the new zoom factor
-            int currentZoom = params.getZoom();
-            Log.d(this.getClass().getName(), "zooming from " + currentZoom + "x to " + zoomFactor + "x");
             if (AppConfiguration.instance(_context).smoothZoom()) {
                 // zoom smoothly
                 try {
                     _camera.startSmoothZoom(zoomFactor);
                 }
                 catch (Throwable ex) {
-                    Log.e(this.getClass().getName(), "can't smoothzoom");
+                    Log.e(this.getClass().getName(), "can't smooth-zoom");
                 }
             }
             else {
@@ -162,6 +178,10 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
                 // set back parameters
                 _camera.setParameters(params);
             }
+        }
+        if (!AppConfiguration.instance(_context).smoothZoom()) {
+            // manually update zoom label (either, it would be done in OnZoomChangeListener())
+            updateZoomLabelHost(_camera);
         }
     }
 
@@ -188,6 +208,10 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
         } else {
             // no zoom
             setZoom(0);
+
+            // camera may be null and zoom callback not called, update it manually
+            // so when startPreview will be called camera will zoom to 0
+            _savedZoom = 0;
         }
     }
 
@@ -265,16 +289,17 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
 
     /**
      * takes a picture
+     * @return path to the temporary file created (the taken picture)
      */
-    public void snapPicture() {
+    public File snapPicture() {
         if (_camera == null) {
             Log.w(this.getClass().getName(), "camera not yet initialized");
-            return;
+            return null;
         }
 
-        // take the picture
+        // prepare the camera
         Camera.Parameters params = _camera.getParameters();
-        params.setPictureSize(2592,1944);
+        params.setPictureSize(2592, 1944);
         if (AppConfiguration.instance(_context).addLocation()) {
             // get the last location first
             Location loc = getLocation();
@@ -292,37 +317,51 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
         }
         _camera.setParameters(params);
 
+        // play the shutter click
+        AudioManager audio = (AudioManager)_context.getSystemService(Context.AUDIO_SERVICE);
+        audio.playSoundEffect(Sounds.SUCCESS);
+
+        // take the picture
+        final Object obj = new Object();
+        final File[] tmpImage = {null};
         _camera.takePicture(null, null, new Camera.PictureCallback() {
             @Override
             public void onPictureTaken(byte[] bytes, Camera camera) {
+                // stop the preview
+                _camera.stopPreview();
+
                 // save a temporary image
                 String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
-                File tmpFull = new File (Environment.getExternalStorageDirectory(), timeStamp + ".jpg");
-                tmpFull = Utils.bufferToFile(bytes, tmpFull.getAbsolutePath());
-                if (tmpFull == null) {
+                File f = new File(Environment.getExternalStorageDirectory(), timeStamp + ".jpg");
+                f = Utils.bufferToFile(bytes, f.getAbsolutePath());
+                tmpImage[0] = f;
+                if (f == null) {
                     Log.e(this.getClass().getName(), "can't create temporary file for picture");
-                    return;
                 }
-
-                // show the taken picture
-                Intent intent = new Intent(_context, TakenActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.putExtra("tmp_path", tmpFull.getAbsolutePath());
-                _context.startActivity(intent);
+                // notify
+                synchronized (obj) {
+                    obj.notify();
+                }
             }
         });
+
+        // wait for the callback
+        synchronized (obj) {
+            try {
+                obj.wait();
+            } catch (InterruptedException e) {
+
+            }
+        }
+
+        // and return path to the captured image
+        return tmpImage[0];
     }
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+        // start the preview as soon as we have the texture
         startPreview();
-
-        // if maxzoom mode is set, we'll start max-zoomed
-        toggleMaxZoom();
-
-        // set the overlay labels in the main activity
-        MainActivity hostActivity = (MainActivity) _view.getContext();
-        hostActivity.setOverlayLabels();
     }
 
     @Override
@@ -332,6 +371,7 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
 
     @Override
     public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+        // stop the preview once the texture is destroyed (on close)
         stopPreview();
         return true;
     }
@@ -341,12 +381,26 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
 
     }
 
+    /**
+     * update the host zoom label (in MainActivity)
+     */
+    private void updateZoomLabelHost(Camera camera) {
+        try {
+            // update the zoom label
+            MainActivity hostActivity = (MainActivity) _view.getContext();
+            hostActivity.updateZoomLabel();
+
+            // always save the current zoom factor
+            _savedZoom = camera.getParameters().getZoom();
+        }
+        catch (Throwable ex) {
+            // camera may have been released
+        }
+
+    }
     @Override
     public void onZoomChange(int i, boolean b, Camera camera) {
-        if (AppConfiguration.instance(_context).smoothZoom()) {
-            // update zoom label when smooth zooming
-            MainActivity hostActivity = (MainActivity) _view.getContext();
-            hostActivity.setOverlayLabels();
-        }
+        // update the zoom label
+        updateZoomLabelHost(camera);
     }
 }

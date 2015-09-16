@@ -1,30 +1,71 @@
 #VGCamera - valerino's glass camera
 ##Google glass camera as it should have been
 
-#features:
-totally controlled by voice ('take a picture', 'record a video', 'stop video')
+#Features:
+* Can be controlled totally hands-free (i.e. ideal for surgeons)
+* Can be controlled via touchpad too
+* Always shows what the camera is looking at (preview mode), no more shooting pictures blindly!
+* Zoom, can take zoomed pictures and/or videos
+* Autosave (restart preview immediately after taken picture/video)
+* Geotagging
+* Sharing of the taken media on social networks / email
+* Visible overlays to identify operation modes and selected options
+* Stores the set configuration options across usages
 
-zoom control ('in zoom', 'out zoom', 'max zoom', 'reset zoom')
+#Modes of operation
+There are 2 modes of operation : 
 
-close by voice ('close')
+* 'Preview mode' (while recording or before taking a picture)
+* 'Taken mode' (after recording has been stopped or picture taken).
 
-overlay (shows zoom/info, toggable with 'hide overlay', 'show overlay')
+Both modes can be controlled either handsfree and/or with the touchpad simultaneously (i.e. zoom with the touchpad, zoom more handsfree, take picture handsfree, save with the touchpad, and so on).
 
-This is currently reaaaaaally WIP (started 2 hours ago after i managed to fix my glass for the foil issue!).
+##Hands-free
+###Preview mode
+ 1. Starts saying 'VGCamera', app will start in Preview mode
+ 2. Take picture with 'Ok Glass' -> 'Take a picture' as usual
+ 3. Start video recording with 'Ok Glass' -> 'Record a video' as usual
+ 4. Stop video recording with 'Ok Glass' -> 'Stop'
+ 5. Zoom with 'Ok Glass' -> 'Zoom' -> 'In' / 'Out'
+ 6. Toggle Maximum Zoom with 'Ok Glass' -> 'Zoom' -> 'Max ON' / 'Max OFF'
+ 7. Toggle Smooth Zoom with 'Ok Glass' -> 'Zoom' -> 'Smooth ON' / 'Smooth OFF'
+ 8. Toggle Autosave with 'Ok Glass' -> 'Options' -> 'Autosave ON' / 'Autosave OFF'    
+ 9. Toggle Geotagging with 'Ok glass' -> 'Options' -> 'Geotag ON' / 'Geotag OFF'    
+ 10. Toggle Overlay with 'Ok glass' -> 'Options' -> 'Overlay ON' / 'Overlay OFF'    
+ 11. Close app with 'Close'
 
-I was so excited to have my glass back that i decided to quickly hack an app with features i always wanted :)
+###Taken mode
+If Autosave is not set, after taking a picture (or video recording has been stopped), saying 'Ok Glass' you're presented with another menu which allows to:
+
+1. 'Save' : save the taken media
+2. 'Discard': discard the taken media and get back to preview mode
+3. 'Share': share the taken media on social networks / email
+
+##Touchpad
+###Preview mode
+1. Single finger tap on the touchpad shows scrollable configuration toggles for Geotagging, Autosave, Max zoom, Smooth zoom and Overlays
+2. Swipe left/right zooms in/out
+3. Double finger tap / Pressing the camera button takes a picture
+4. Three finger tap / Long pressing the camera button starts video recording
+5. While in video recording mode, long tap / Pressing the camera button stops recording
+
+###Taken mode
+If Autosave is not set, after taking a picture (or video recording has been stopped), single tapping the touchpad you're presented with scrollable cards to Save, Discard or Share the taken media.
 
 #Currently implemented:
-all of the above in preview mode
+* Everything is fully functional for taking pictures (saved in /sdcard/DCIM/Camera)
 
 #TODO:
-miss the actual take photo/video code :) but it's trivial, i'll do it tomorrow/in the next days!
-
-some touch gestures (zoom/take picture/video by touchpad)
-
-some other controls if possible (need to check what the camera hardware supports...)
+* Video recording
+* Sharing
+* Find a way to use built-in autobackup, unfortunately taking pictures using the Camera API seems to not trigger the autobackup correctly even when saving the media to the DCIM/Camera folder and triggering the MediaScanner to refresh. If some Google engineer reads, please please please tell me how to overcome this, there's a long standing bug filed (https://code.google.com/p/google-glass-api/issues/detail?id=588). Or, i will simply do it my way and reverse your original camera app :)
+* Find a way to display the taken media in the timeline using the Mirror API (since Google removed the capability of simply creating static cards in the timeline). Or, i will revert to use my own internal viewer.
+* Configurable picture quality (this is trivial)
 
 #Compile with:
-the usual android studio (needs Android SDK 19 with the Glass Preview SDK)
+The usual android studio (needs Android SDK 19 with the Glass Preview SDK)
 
+#Bye!
 cowabunga, ciao, bacetti :)
+
+And please, Google .... you rock .... reconsider Glass, they're awesome!
