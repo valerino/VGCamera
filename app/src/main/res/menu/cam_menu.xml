@@ -19,6 +19,7 @@
             <item android:id="@+id/toggle_autosave" android:title="@string/toggle_autosave"/>
             <item android:id="@+id/toggle_location" android:title="@string/toggle_location"/>
             <item android:id="@+id/toggle_overlay" android:title="@string/toggle_overlay"/>
+            <item android:id="@+id/toggle_quality" android:title="@string/toggle_quality"/>
             <item android:id="@+id/back" android:title="@string/back"/>
         </menu>
     </item>

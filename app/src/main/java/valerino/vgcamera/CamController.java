@@ -6,14 +6,13 @@ import android.hardware.Camera;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
-import android.media.AudioManager;
+import android.media.CamcorderProfile;
+import android.media.MediaRecorder;
 import android.os.Environment;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.TextureView;
-
-import com.google.android.glass.media.Sounds;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,11 +27,12 @@ import java.util.List;
 public class CamController implements Camera.OnZoomChangeListener, TextureView.SurfaceTextureListener,
         SurfaceHolder.Callback {
     private Camera _camera = null;
-    private TextureView _textureView = null;
     private SurfaceView _surfaceView = null;
     private Context _context = null;
     private static CamController _instance = null;
     private int _savedZoom = 0;
+    private MediaRecorder _mediaRecorder = null;
+    private File _tmpVideo = null;
 
     /**
      * constructor (use instance())
@@ -58,31 +58,12 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
     }
 
     /**
-     * set the TextureView to blit on
-     *
-     * @param view the TextureView
-     */
-    public void setTextureView(TextureView view) {
-        _textureView = view;
-    }
-
-
-    /**
      * set the SurfaceView to blit on
      *
      * @param view the SurfaceView
      */
     public void setSurfaceView(SurfaceView view) {
         _surfaceView = view;
-    }
-
-    /**
-     * get the TextureView
-     *
-     * @return
-     */
-    public TextureView textureView() {
-        return _textureView;
     }
 
     /**
@@ -113,15 +94,10 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
         }
         _camera = Camera.open();
         try {
-            if (_textureView != null) {
-                _camera.setPreviewTexture(_textureView.getSurfaceTexture());
-            }
-            else {
-                _camera.setPreviewDisplay(_surfaceView.getHolder());
-            }
+            _camera.setPreviewDisplay(_surfaceView.getHolder());
         } catch (IOException e) {
             // error!
-            Log.e(this.getClass().getName(), "setPreviewTexture()", e);
+            Log.e(this.getClass().getName(), "setPreviewDisplay(), _surfaceView=" + _surfaceView, e);
             return;
         }
 
@@ -321,6 +297,88 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
     }
 
     /**
+     * starts the videorecorder
+     * @return boolean true if start is successful
+     */
+    public boolean startRecorder() {
+        if (_camera == null) {
+            Log.w(this.getClass().getName(), "camera not yet initialized");
+            return false;
+        }
+        // initialize a mediarecorder
+        _mediaRecorder = new MediaRecorder();
+
+        // set quality
+        CamcorderProfile profile;
+        if (AppConfiguration.instance(_context).quality() == AppConfiguration.QUALITY.HIGH) {
+            profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH);
+        }
+        else {
+            profile = CamcorderProfile.get(CamcorderProfile.QUALITY_LOW);
+        }
+        _mediaRecorder.setCamera(_camera);
+        _camera.stopPreview();
+        _camera.unlock();
+        _mediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
+        _mediaRecorder.setVideoSource(MediaRecorder.VideoSource.DEFAULT);
+        _mediaRecorder.setProfile(profile);
+
+        // set display
+        _mediaRecorder.setPreviewDisplay(_surfaceView.getHolder().getSurface());
+        if (AppConfiguration.instance(_context).addLocation()) {
+            // get the last location first
+            Location loc = getLocation();
+            if (loc != null) {
+                _mediaRecorder.setLocation((float) loc.getLatitude(), (float) loc.getLongitude());
+            }
+        }
+
+        // generate filename
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
+        _tmpVideo = new File(Environment.getExternalStorageDirectory(), timeStamp + ".mp4");
+        _mediaRecorder.setOutputFile(_tmpVideo.getAbsolutePath());
+        try {
+            _mediaRecorder.prepare();
+        } catch (IOException e) {
+            Log.d(this.getClass().getName(), "mediaRecorder.prepare()", e);
+            stopRecorder(true);
+            return false;
+        }
+        _mediaRecorder.start();
+        return true;
+    }
+
+    /**
+     * stops the videorecorder
+     * @param deleteFile true to delete the captured file
+     * @return path to the temporary file
+     */
+    public File stopRecorder(boolean deleteFile) {
+        if (_mediaRecorder == null) {
+            return null;
+        }
+        // release the recorder's resources and restart the normal preview
+        _mediaRecorder.stop();
+        _mediaRecorder.release();
+        _mediaRecorder = null;
+        startPreview();
+
+        if (_tmpVideo != null) {
+            if (deleteFile) {
+                // just delete the captured file
+                _tmpVideo.delete();
+                _tmpVideo = null;
+                return null;
+            }
+        }
+
+        // and return the captured media
+        File f = _tmpVideo;
+        _tmpVideo = null;
+        return f;
+    }
+
+    /**
      * takes a picture
      * @return path to the temporary file created (the taken picture)
      */
@@ -332,7 +390,15 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
 
         // prepare the camera
         Camera.Parameters params = _camera.getParameters();
-        params.setPictureSize(2592, 1944);
+        if (AppConfiguration.instance(_context).quality() == AppConfiguration.QUALITY.HIGH) {
+            // high quality
+            params.setPictureSize(2592, 1944);
+        }
+        else {
+            // low quality
+            params.setPictureSize(1296, 972);
+        }
+
         if (AppConfiguration.instance(_context).addLocation()) {
             // get the last location first
             Location loc = getLocation();
@@ -349,10 +415,6 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
             }
         }
         _camera.setParameters(params);
-
-        // play the shutter click
-        AudioManager audio = (AudioManager)_context.getSystemService(Context.AUDIO_SERVICE);
-        audio.playSoundEffect(Sounds.SUCCESS);
 
         // take the picture
         final Object obj = new Object();
@@ -437,7 +499,7 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
     private void updateZoomLabelHost(Camera camera) {
         try {
             // update the zoom label
-            MainActivity hostActivity = (MainActivity) _textureView.getContext();
+            MainActivity hostActivity = (MainActivity) _surfaceView.getContext();
             hostActivity.updateZoomLabel();
 
             // always save the current zoom factor

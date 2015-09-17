@@ -37,6 +37,13 @@
                 android:src="@drawable/ic_angle_50"
                 android:scaleType="matrix"/>
 
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/qualityImage"
+                android:src="@drawable/ic_plus_50"
+                android:scaleType="matrix"/>
+
         </LinearLayout>
 
     <ImageView

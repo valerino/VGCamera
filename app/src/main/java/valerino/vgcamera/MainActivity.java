@@ -52,11 +52,12 @@ public class MainActivity extends Activity {
      */
     private enum DONE_STATUS {
         STATUS_OK,  // media saved ok
-        STATUS_CANCELED, // media canceled (taken media deleted)
+        STATUS_CANCELED, // canceled (taken media deleted)
         STATUS_STOP_VIDEO, // video stopped
         STATUS_START_VIDEO, // video started
-        STATUS_ERROR // error saving media
-    };
+        STATUS_ERROR, // error saving media
+        STATUS_UNSUPPORTED // unsupported in the current mode
+    }
 
     /**
      * update the zoom label
@@ -86,6 +87,8 @@ public class MainActivity extends Activity {
         ImageView smoothImg = (ImageView) findViewById(R.id.smoothZoomImage);
         ImageView saveImg = (ImageView) findViewById(R.id.autoSaveImage);
         ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
+        ImageView qualityImg = (ImageView)findViewById(R.id.qualityImage);
+
 
         // apply scaling (they're 50x50)
         // TODO: avoid scaling at runtime, just scale the images with gimp once for all :)
@@ -97,6 +100,8 @@ public class MainActivity extends Activity {
         saveImg.setScaleY((float) 0.5);
         modeImg.setScaleX((float) 0.5);
         modeImg.setScaleY((float) 0.5);
+        qualityImg.setScaleX((float) 0.5);
+        qualityImg.setScaleY((float) 0.5);
 
         // enable/disable the whole overlay
         boolean enabled = (AppConfiguration.instance(this).overlayMode() == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
@@ -105,21 +110,22 @@ public class MainActivity extends Activity {
             locImg.setVisibility(View.INVISIBLE);
             smoothImg.setVisibility(View.INVISIBLE);
             saveImg.setVisibility(View.INVISIBLE);
-            modeImg.setVisibility(View.INVISIBLE);
+            qualityImg.setVisibility(View.INVISIBLE);
             return;
         }
 
-        // enable/disable selectively
+        // // set visible options based on configuration
         locImg.setVisibility(AppConfiguration.instance(this).addLocation() ? View.VISIBLE : View.INVISIBLE);
         smoothImg.setVisibility(AppConfiguration.instance(this).smoothZoom() ? View.VISIBLE : View.INVISIBLE);
         saveImg.setVisibility(AppConfiguration.instance(this).autoSave() ? View.VISIBLE : View.INVISIBLE);
+        qualityImg.setVisibility(AppConfiguration.instance(this).quality() == AppConfiguration.QUALITY.HIGH ? View.VISIBLE : View.INVISIBLE);
     }
 
     /**
      * initialize the options menu (for preview mode)
      * @param menu the options menu
      */
-    private void initializePreviewMenu(Menu menu) {
+    private void initializeOptionsMenu(Menu menu) {
         final String on = " ON";
         final String off = " OFF";
 
@@ -147,6 +153,11 @@ public class MainActivity extends Activity {
         enabled = (AppConfiguration.instance(this).overlayMode() == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
         s = getResources().getString(R.string.toggle_overlay);
         menu.findItem(R.id.toggle_overlay).setTitle(s + (enabled ? off : on));
+
+        // quality
+        boolean qualityHigh = (AppConfiguration.instance(this).quality() == AppConfiguration.QUALITY.HIGH);
+        s = getResources().getString(R.string.toggle_quality);
+        menu.findItem(R.id.toggle_overlay).setTitle(s + (qualityHigh ? " LOW" : " HIGH"));
     }
 
     /**
@@ -196,6 +207,22 @@ public class MainActivity extends Activity {
     }
 
     /**
+     * toggle quality hi/lo
+     */
+    void toggleQuality() {
+        AppConfiguration.QUALITY currentQuality = AppConfiguration.instance(this).quality();
+        if (currentQuality == AppConfiguration.QUALITY.HIGH) {
+            // low quality
+            AppConfiguration.instance(this).setQuality(AppConfiguration.QUALITY.LOW);
+        }
+        else {
+            // high quality
+            AppConfiguration.instance(this).setQuality(AppConfiguration.QUALITY.HIGH);
+        }
+        setupOverlay();
+    }
+
+    /**
      * toggle geotagging on/off
      */
     void toggleGeotagging() {
@@ -216,7 +243,7 @@ public class MainActivity extends Activity {
             getMenuInflater().inflate(R.menu.cam_menu, _menu);
 
             // initialize with runtime values
-            initializePreviewMenu(_menu);
+            initializeOptionsMenu(_menu);
 
             // restart preview too
             CamController.instance(this).startPreview();
@@ -236,19 +263,11 @@ public class MainActivity extends Activity {
         File f = new File (AppConfiguration.instance(this).storageFolder(), src.getName());
         if (!src.renameTo(f)) {
             Log.e(this.getClass().getName(), "can't rename " + src.getAbsolutePath() + " to " + f.getAbsolutePath());
-
-            // error!
-            AudioManager audio = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
-            audio.playSoundEffect(Sounds.ERROR);
             return null;
         }
 
-        // ok
-        AudioManager audio = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
-        audio.playSoundEffect(Sounds.SUCCESS);
+        // ok, update media library too
         Log.d(this.getClass().getName(), "saved media: " + f.getAbsolutePath());
-
-        // update media library too
         MediaScannerConnection.scanFile(this, new String[]{f.getAbsolutePath()}, null, null);
         return src;
     }
@@ -269,14 +288,10 @@ public class MainActivity extends Activity {
      */
     private void discardMedia(boolean playSound) {
         // delete cached media
-        if (playSound) {
-            AudioManager audio = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
-            audio.playSoundEffect(Sounds.DISMISSED);
-        }
         if (_tmpMedia != null) {
             _tmpMedia.delete();
         }
-        signalDone(this, DONE_STATUS.STATUS_CANCELED, false);
+        signalStatus(this, DONE_STATUS.STATUS_CANCELED, false);
     }
 
     /**
@@ -290,29 +305,38 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * signal save ok/error through an icon in the center of the screen, and restart preview mode
+     * signal status through audio and an icon in the center of the screen
      * @param ctx a Context
      * @param status one of the DONE_STATUS
      * @param restartPreview true to restart the preview
      */
-    private void signalDone(final Context ctx, DONE_STATUS status , final boolean restartPreview) {
+    private void signalStatus(final Context ctx, DONE_STATUS status, final boolean restartPreview) {
         final ImageView img = (ImageView)findViewById(R.id.takenResultImage);
+        AudioManager am = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
         switch (status) {
             case STATUS_OK:
                 img.setImageResource(R.drawable.ic_done_50);
+                am.playSoundEffect(Sounds.SUCCESS);
                 break;
             case STATUS_CANCELED:
                 img.setImageResource(R.drawable.ic_delete_50);
+                am.playSoundEffect(Sounds.DISMISSED);
                 break;
             case STATUS_ERROR:
                 img.setImageResource(R.drawable.ic_warning_50);
+                am.playSoundEffect(Sounds.ERROR);
                 break;
             case STATUS_STOP_VIDEO:
                 img.setImageResource(R.drawable.ic_video_off_50);
+                am.playSoundEffect(Sounds.SUCCESS);
                 break;
             case STATUS_START_VIDEO:
                 img.setImageResource(R.drawable.ic_video_50);
+                am.playSoundEffect(Sounds.SUCCESS);
                 break;
+            case STATUS_UNSUPPORTED:
+                img.setImageResource(R.drawable.ic_no_50);
+                am.playSoundEffect(Sounds.DISALLOWED);
             default:
                 return;
         }
@@ -340,22 +364,21 @@ public class MainActivity extends Activity {
     private void startRecording() {
         if (_isVideo) {
             // no effect
-            AudioManager audio = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
-            audio.playSoundEffect(Sounds.DISMISSED);
+            signalStatus(this, DONE_STATUS.STATUS_UNSUPPORTED, false);
             return;
         }
-        else {
-            // signal start
-            AudioManager audio = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
-            audio.playSoundEffect(Sounds.SUCCESS);
-            signalDone(this,DONE_STATUS.STATUS_START_VIDEO,false);
-        }
-        _isVideo = true;
 
-        // change mode icon to video
-        ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
-        modeImg.setImageResource(R.drawable.ic_video_50);
-        setupOverlay();
+        // start recording
+        if (CamController.instance(this).startRecorder()) {
+            // signal start
+            signalStatus(this, DONE_STATUS.STATUS_START_VIDEO, false);
+
+            // change mode icon to video
+            _isVideo = true;
+            ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
+            modeImg.setImageResource(R.drawable.ic_video_50);
+            setupOverlay();
+        }
     }
 
     /**
@@ -364,14 +387,34 @@ public class MainActivity extends Activity {
     private void stopRecording() {
         if (!_isVideo) {
             // only valid in video mode
+            signalStatus(this, DONE_STATUS.STATUS_UNSUPPORTED, false);
             return;
         }
-        _isVideo = false;
 
-        // signal stop
-        signalDone(this, DONE_STATUS.STATUS_STOP_VIDEO, false);
+        // get the currently recorded media
+        _tmpMedia = CamController.instance(this).stopRecorder(false);
+        if (_tmpMedia == null) {
+            // signal error
+            signalStatus(this, DONE_STATUS.STATUS_ERROR, false);
+        }
+        else {
+            // signal stop
+            signalStatus(this, DONE_STATUS.STATUS_STOP_VIDEO, false);
+
+            if (AppConfiguration.instance(this).autoSave()) {
+                // directly save
+                boolean ok = (saveMedia() != null);
+                signalStatus(this, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, false);
+            }
+            else {
+                // user will take action
+                CamController.instance(this).stopPreview();
+                switchPanelMenu(OPERATION_MODE.MODE_TAKEN);
+            }
+        }
 
         // change mode icon to camera
+        _isVideo = false;
         ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
         modeImg.setImageResource(R.drawable.ic_camera_50);
         setupOverlay();
@@ -382,6 +425,12 @@ public class MainActivity extends Activity {
      * @param ctx a Context
      */
     private void takePicture(final Context ctx) {
+        if (_isVideo) {
+            // can't take a picture while recording video
+            signalStatus(ctx, DONE_STATUS.STATUS_UNSUPPORTED, false);
+            return;
+        }
+
         // use an async task, since snapPicture() would block the UI thread
         AsyncTask<Void, Void, File> t = new AsyncTask<Void, Void, File>() {
             @Override
@@ -408,7 +457,7 @@ public class MainActivity extends Activity {
                 if (AppConfiguration.instance(ctx).autoSave()) {
                     // directly save and restart preview (taking picture disable the preview)
                     boolean ok = (saveMedia() != null);
-                    signalDone(ctx, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, true);
+                    signalStatus(ctx, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, true);
                 }
                 else {
                     // user will take action
@@ -434,7 +483,7 @@ public class MainActivity extends Activity {
             case R.id.save:
                 // save the captured image/video (preview will be restarted automatically)
                 boolean ok = (saveMedia() != null);
-                signalDone(this, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, false);
+                signalStatus(this, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, false);
                 break;
 
             case R.id.discard:
@@ -483,6 +532,12 @@ public class MainActivity extends Activity {
                 break;
             }
 
+            case R.id.toggle_quality: {
+                // toggle quality lo/hi
+                toggleQuality();
+                break;
+            }
+
             case R.id.toggle_overlay:
                 // toggle overlay on/off
                 toggleOverlay();
@@ -525,7 +580,7 @@ public class MainActivity extends Activity {
         }
 
         // reinitialize with the new values for later usage
-        initializePreviewMenu(_menu);
+        initializeOptionsMenu(_menu);
     }
 
     /**
@@ -553,7 +608,7 @@ public class MainActivity extends Activity {
             if (_mode == OPERATION_MODE.MODE_PREVIEW) {
                 // the preview menu
                 getMenuInflater().inflate(R.menu.cam_menu, menu);
-                initializePreviewMenu(menu);
+                initializeOptionsMenu(menu);
             }
             else {
                 // the post-preview menu
@@ -584,20 +639,14 @@ public class MainActivity extends Activity {
                 WindowManager.LayoutParams.MATCH_PARENT);
         addContentView(overlays, layoutParamsControl);
 
-
-        /*
-        // this is the texture view we'll blit on
-        TextureView cameraTextureView = (TextureView) findViewById(R.id.cameraTextureView);
-
-        // screen must be always on
-        cameraTextureView.setKeepScreenOn(true);
-
-        // setup the listener to show/hide the preview
-        CamController.instance(this).setTextureView(cameraTextureView);
-        cameraTextureView.setSurfaceTextureListener(CamController.instance(this));
-        */
+        // set the surface
         SurfaceView sv = (SurfaceView) findViewById(R.id.cameraSurfaceView);
         CamController.instance(this).setSurfaceView(sv);
+
+        // screen must be always on
+        sv.setKeepScreenOn(true);
+
+        // setup the listener to show/hide the preview
         sv.getHolder().addCallback(CamController.instance(this));
     }
 
@@ -631,10 +680,12 @@ public class MainActivity extends Activity {
         Log.d(this.getClass().getName(), "vgcamera is pausing");
 
         // delete temporary files and do some cleanup
-        System.gc();
+        CamController.instance(this).stopRecorder(true);
         if (_tmpMedia != null) {
             _tmpMedia.delete();
         }
+        System.gc();
+
         super.onPause();
     }
 
@@ -733,8 +784,15 @@ public class MainActivity extends Activity {
                     // show cards depending on mode
                     Intent it;
                     if (_mode == OPERATION_MODE.MODE_PREVIEW) {
-                        // in preview mode, show cam options
-                        it = new Intent(ctx, OptionsScroller.class);
+                        if (_isVideo) {
+                            // in preview mode while recording, preview cant be interrupted
+                            signalStatus(ctx, DONE_STATUS.STATUS_UNSUPPORTED, false);
+                            return true;
+                        }
+                        else {
+                            // in preview mode, show cam options
+                            it = new Intent(ctx, OptionsScroller.class);
+                        }
                     }
                     else {
                         // in taken mode, show save/discard/share

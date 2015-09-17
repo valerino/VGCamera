@@ -30,6 +30,8 @@ public class AppConfiguration {
 
     private boolean _addLocation;
 
+    private QUALITY _quality;
+
     private File _storageFolder;
 
     SharedPreferences _sharedPrefs;
@@ -41,6 +43,12 @@ public class AppConfiguration {
     private final static String PREFS_OVERLAY = "overlay";
     private final static String PREFS_SMOOTH_ZOOM = "smooth_zoom";
     private final static String PREFS_MAX_ZOOM = "max_zoom";
+    private final static String PREFS_QUALITY = "quality";
+
+    public enum QUALITY {
+        HIGH,
+        LOW
+    }
 
     /**
      * constructor (use instance())
@@ -57,12 +65,11 @@ public class AppConfiguration {
         _overlayMode = OVERLAY_MODE.valueOf(_sharedPrefs.getString(PREFS_OVERLAY, OVERLAY_MODE.SHOW_OVERLAY.toString()));
         _smoothZoom = _sharedPrefs.getBoolean(PREFS_SMOOTH_ZOOM, false);
         _maxZoomMode = _sharedPrefs.getBoolean(PREFS_MAX_ZOOM, false);
+        _quality = QUALITY.valueOf(_sharedPrefs.getString(PREFS_QUALITY, QUALITY.HIGH.toString()));
 
         // this is the storage folder (hardcoded too)
         _storageFolder = new File (Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera");
         //_storageFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-
-
     }
 
     /**
@@ -137,6 +144,26 @@ public class AppConfiguration {
 
         // update prefs
         _editor.putString(PREFS_OVERLAY, mode.toString());
+        _editor.commit();
+    }
+
+    /**
+     * get the output quality
+     * @return
+     */
+    public QUALITY quality() {
+        return _quality;
+    }
+
+    /**
+     * set the output quality (for pictures and video)
+     * @param quality HIGH or LOW
+     */
+    public void setQuality(QUALITY quality) {
+        _quality = quality;
+
+        // update prefs
+        _editor.putString(PREFS_QUALITY, quality.toString());
         _editor.commit();
     }
 

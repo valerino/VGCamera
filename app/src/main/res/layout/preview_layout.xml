@@ -10,9 +10,4 @@
         android:id="@+id/cameraSurfaceView"
         android:layout_gravity="center_horizontal"/>
 
-    <TextureView
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:id="@+id/cameraTextureView"
-        android:layout_gravity="center_horizontal"/>
 </LinearLayout>

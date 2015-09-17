@@ -2,21 +2,22 @@
     <string name="app_name">VGCamera</string>
     <string name="glass_voice_trigger">VGCamera</string>
 
-    <string name="options">Options</string>
+    <string name="take_picture">Take a picture</string>
+    <string name="take_video">Record a video</string>
+    <string name="stop">Stop Video</string>
     <string name="zoom">Zoom</string>
+    <string name="options">Options</string>
+    <string name="close">Close</string>
+
     <string name="toggle_overlay">Overlay</string>
     <string name="toggle_location">Geotag</string>
     <string name="toggle_autosave">Autosave</string>
+    <string name="toggle_quality">Quality</string>
 
     <string name="zoom_in">In</string>
     <string name="zoom_out">Out</string>
     <string name="toggle_max_zoom">Max</string>
     <string name="toggle_smooth_zoom">Smooth</string>
-
-    <string name="take_picture">Take a picture</string>
-    <string name="take_video">Record a video</string>
-    <string name="stop">Stop Video</string>
-    <string name="close">Close</string>
 
     <string name="share">Share</string>
     <string name="save">Save</string>
