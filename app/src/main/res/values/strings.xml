@@ -18,6 +18,7 @@
     <string name="zoom_out">Out</string>
     <string name="toggle_max_zoom">Max</string>
     <string name="toggle_smooth_zoom">Smooth</string>
+    <string name="zoom_reset">Reset</string>
 
     <string name="share">Share</string>
     <string name="save">Save</string>

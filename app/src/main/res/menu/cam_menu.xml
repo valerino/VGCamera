@@ -9,6 +9,7 @@
             <item android:id="@+id/zoom_out" android:title="@string/zoom_out" />
             <item android:id="@+id/zoom_toggle_max" android:title="@string/toggle_max_zoom"/>
             <item android:id="@+id/zoom_toggle_smooth" android:title="@string/toggle_smooth_zoom"/>
+            <item android:id="@+id/zoom_reset" android:title="@string/zoom_reset"/>
             <item android:id="@+id/back" android:title="@string/back"/>
         </menu>
     </item>

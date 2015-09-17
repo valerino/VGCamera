@@ -1,7 +1,6 @@
 package valerino.vgcamera;
 
 import android.content.Context;
-import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.location.Criteria;
 import android.location.Location;
@@ -12,7 +11,6 @@ import android.os.Environment;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.view.TextureView;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,8 +22,7 @@ import java.util.List;
  * controls the camera, singleton
  * Created by valerino on 13/09/15.
  */
-public class CamController implements Camera.OnZoomChangeListener, TextureView.SurfaceTextureListener,
-        SurfaceHolder.Callback {
+public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder.Callback {
     private Camera _camera = null;
     private SurfaceView _surfaceView = null;
     private Context _context = null;
@@ -151,6 +148,17 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
     }
 
     /**
+     * reset zoom to 0
+     */
+    public void resetZoom() {
+        // maxzoom mode disabled
+        AppConfiguration.instance(_context).setMaxZoomMode(false);
+
+        // reset zoom to 0
+        setZoom(0);
+    }
+
+    /**
      * set the camera zoom
      *
      * @param zoomFactor a zoom factor (must be <= camera.zoomMax())
@@ -158,6 +166,8 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
     public void setZoom(int zoomFactor) {
         if (_camera == null) {
             Log.w(this.getClass().getName(), "camera not yet initialized");
+            // will be set on surfaceCreated()
+            _savedZoom = zoomFactor;
             return;
         }
 
@@ -211,10 +221,6 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
         } else {
             // no zoom
             setZoom(0);
-
-            // camera may be null and zoom callback not called, update it manually
-            // so when startPreview will be called camera will zoom to 0
-            _savedZoom = 0;
         }
     }
 
@@ -451,29 +457,6 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
 
         // and return path to the captured image
         return tmpImage[0];
-    }
-
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
-        // start the preview as soon as we have the texture
-        startPreview();
-    }
-
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
-
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-        // stop the preview once the texture is destroyed (on close)
-        stopPreview();
-        return true;
-    }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
-
     }
 
     @Override

@@ -6,6 +6,7 @@
 * Can be controlled via touchpad too
 * Always shows what the camera is looking at (preview mode), no more shooting pictures blindly!
 * Zoom, can take zoomed pictures and/or videos
+* Configurable quality (high/low) for both videos and pictures
 * Autosave (restart preview immediately after taken picture/video)
 * Geotagging
 * Sharing of the taken media on social networks / email
@@ -53,14 +54,15 @@ If Autosave is not set, after taking a picture (or video recording has been stop
 If Autosave is not set, after taking a picture (or video recording has been stopped), single tapping the touchpad you're presented with scrollable cards to Save, Discard or Share the taken media.
 
 #Currently implemented:
-* Everything is fully functional for taking pictures (saved in /sdcard/DCIM/Camera)
+* Everything is fully functional for taking pictures and recording videos (saved in /sdcard/DCIM/Camera), but no display and share yet
 
 #TODO:
-* Video recording
 * Sharing
 * Find a way to use built-in autobackup, unfortunately taking pictures using the Camera API seems to not trigger the autobackup correctly even when saving the media to the DCIM/Camera folder and triggering the MediaScanner to refresh. If some Google engineer reads, please please please tell me how to overcome this, there's a long standing bug filed (https://code.google.com/p/google-glass-api/issues/detail?id=588). Or, i will simply do it my way and reverse your original camera app :)
 * Find a way to display the taken media in the timeline using the Mirror API (since Google removed the capability of simply creating static cards in the timeline). Or, i will revert to use my own internal viewer.
-* Configurable picture quality (this is trivial)
+* Some more features: take-picture burst mode, timed videos, face recognition, qrcode scanning
+* Provide head-scrolling menus (at the moment, 'Ok google' menus are fixed to 6 elements and non scrollable)
+* Remove 'Ok google' and use custom commands ?
 
 #Compile with:
 The usual android studio (needs Android SDK 19 with the Glass Preview SDK)

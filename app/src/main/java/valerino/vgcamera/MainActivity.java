@@ -135,7 +135,7 @@ public class MainActivity extends Activity {
         menu.findItem(R.id.zoom_toggle_max).setTitle(s + (enabled ? off : on));
 
         // smooth zoom
-        enabled = AppConfiguration.instance(this).maxZoomMode();
+        enabled = AppConfiguration.instance(this).smoothZoom();
         s = getResources().getString(R.string.toggle_smooth_zoom);
         menu.findItem(R.id.zoom_toggle_smooth).setTitle(s + (enabled ? off : on));
 
@@ -541,40 +541,40 @@ public class MainActivity extends Activity {
                 CamController.instance(this).zoomOut();
                 break;
 
-            case R.id.zoom_toggle_max: {
+            case R.id.zoom_toggle_max:
                 // toggle max zoom on/off
                 toggleMaxZoom();
                 break;
-            }
 
-            case R.id.zoom_toggle_smooth: {
+            case R.id.zoom_toggle_smooth:
                 // toggle smooth zoom on/off
                 toggleSmoothZoom();
                 break;
-            }
 
-            case R.id.toggle_quality: {
+            case R.id.zoom_reset:
+                // reset zoom to 0
+                CamController.instance(this).resetZoom();
+                break;
+
+            case R.id.toggle_quality:
                 // toggle quality lo/hi
                 toggleQuality();
                 break;
-            }
 
             case R.id.toggle_overlay:
                 // toggle overlay on/off
                 toggleOverlay();
                 break;
 
-            case R.id.toggle_location: {
+            case R.id.toggle_location:
                 // toggle location on/off
                 toggleGeotagging();
                 break;
-            }
 
-            case R.id.toggle_autosave: {
+            case R.id.toggle_autosave:
                 // toggle autosave on/off
                 toggleAutoSave();
                 break;
-            }
 
             case R.id.take_picture:
                 // take a picture

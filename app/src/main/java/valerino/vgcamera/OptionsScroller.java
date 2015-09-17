@@ -27,8 +27,9 @@ public class OptionsScroller extends Activity {
     public static final int CHOICE_TOGGLE_LOCATION = 1;
     public static final int CHOICE_TOGGLE_AUTOSAVE = 2;
     public static final int CHOICE_TOGGLE_MAXZOOM = 3;
-    public static final int CHOICE_TOGGLE_SMOOTHZOOM = 4;
-    public static final int CHOICE_TOGGLE_QUALITY = 5;
+    public static final int CHOICE_RESET_ZOOM = 4;
+    public static final int CHOICE_TOGGLE_SMOOTHZOOM = 5;
+    public static final int CHOICE_TOGGLE_QUALITY = 6;
 
     @Override
     protected void onCreate(Bundle bundle) {
@@ -48,6 +49,8 @@ public class OptionsScroller extends Activity {
         adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle autosave on/off"));
         s = "Max-Zoom" + (AppConfiguration.instance(this).maxZoomMode() ? off : on);
         adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle max zoom on/off"));
+        s = "Reset zoom";
+        adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Reset zoom level"));
         s = "Smooth-Zoom" + (AppConfiguration.instance(this).smoothZoom() ? off : on);
         adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle smooth zoom on/off"));
         s = "Quality" + (AppConfiguration.instance(this).quality() == AppConfiguration.QUALITY.HIGH ? " LOW" : " HIGH");
@@ -80,6 +83,11 @@ public class OptionsScroller extends Activity {
                     case CHOICE_TOGGLE_MAXZOOM:
                         // toggle maxzoom
                         resIntent.putExtra("choice", R.id.zoom_toggle_max);
+                        setResult(RESULT_OK, resIntent);
+                        break;
+                    case CHOICE_RESET_ZOOM:
+                        // reset zoom
+                        resIntent.putExtra("choice", R.id.zoom_reset);
                         setResult(RESULT_OK, resIntent);
                         break;
                     case CHOICE_TOGGLE_SMOOTHZOOM:
