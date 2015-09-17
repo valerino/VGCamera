@@ -4,9 +4,15 @@
               android:layout_width="fill_parent"
               android:layout_height="fill_parent">
 
+    <SurfaceView
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:id="@+id/cameraSurfaceView"
+        android:layout_gravity="center_horizontal"/>
+
     <TextureView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
         android:id="@+id/cameraTextureView"
         android:layout_gravity="center_horizontal"/>
 </LinearLayout>

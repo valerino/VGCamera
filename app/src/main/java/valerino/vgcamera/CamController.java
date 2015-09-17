@@ -9,6 +9,8 @@ import android.location.LocationManager;
 import android.media.AudioManager;
 import android.os.Environment;
 import android.util.Log;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.TextureView;
 
 import com.google.android.glass.media.Sounds;
@@ -23,9 +25,11 @@ import java.util.List;
  * controls the camera, singleton
  * Created by valerino on 13/09/15.
  */
-public class CamController implements Camera.OnZoomChangeListener, TextureView.SurfaceTextureListener {
+public class CamController implements Camera.OnZoomChangeListener, TextureView.SurfaceTextureListener,
+        SurfaceHolder.Callback {
     private Camera _camera = null;
-    private TextureView _view = null;
+    private TextureView _textureView = null;
+    private SurfaceView _surfaceView = null;
     private Context _context = null;
     private static CamController _instance = null;
     private int _savedZoom = 0;
@@ -58,18 +62,36 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
      *
      * @param view the TextureView
      */
-    public void setView(TextureView view) {
-        _view = view;
+    public void setTextureView(TextureView view) {
+        _textureView = view;
     }
 
+
+    /**
+     * set the SurfaceView to blit on
+     *
+     * @param view the SurfaceView
+     */
+    public void setSurfaceView(SurfaceView view) {
+        _surfaceView = view;
+    }
 
     /**
      * get the TextureView
      *
      * @return
      */
-    public TextureView view() {
-        return _view;
+    public TextureView textureView() {
+        return _textureView;
+    }
+
+    /**
+     * get the SurfaceView
+     *
+     * @return
+     */
+    public SurfaceView surfaceView() {
+        return _surfaceView;
     }
 
     /**
@@ -91,7 +113,12 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
         }
         _camera = Camera.open();
         try {
-            _camera.setPreviewTexture(_view.getSurfaceTexture());
+            if (_textureView != null) {
+                _camera.setPreviewTexture(_textureView.getSurfaceTexture());
+            }
+            else {
+                _camera.setPreviewDisplay(_surfaceView.getHolder());
+            }
         } catch (IOException e) {
             // error!
             Log.e(this.getClass().getName(), "setPreviewTexture()", e);
@@ -120,7 +147,7 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
         }
 
         // update zoom label if needed
-        MainActivity hostActivity = (MainActivity) _view.getContext();
+        MainActivity hostActivity = (MainActivity)_context;
         hostActivity.updateZoomLabel();
     }
 
@@ -224,6 +251,9 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
             return;
         }
 
+        // maxzoom mode disabled
+        AppConfiguration.instance(_context).setMaxZoomMode(false);
+
         // get parameters and current cam_menu factor
         Camera.Parameters params = _camera.getParameters();
         int zoom = params.getZoom();
@@ -241,6 +271,9 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
             Log.w(this.getClass().getName(), "camera not yet initialized");
             return;
         }
+
+        // maxzoom mode disabled
+        AppConfiguration.instance(_context).setMaxZoomMode(false);
 
         // get parameters and current cam_menu factor
         Camera.Parameters params = _camera.getParameters();
@@ -381,13 +414,30 @@ public class CamController implements Camera.OnZoomChangeListener, TextureView.S
 
     }
 
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
+        // start the preview as soon as we have the surface
+        startPreview();
+    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        // stop the preview once the surface is destroyed (on close)
+        stopPreview();
+    }
+
     /**
      * update the host zoom label (in MainActivity)
      */
     private void updateZoomLabelHost(Camera camera) {
         try {
             // update the zoom label
-            MainActivity hostActivity = (MainActivity) _view.getContext();
+            MainActivity hostActivity = (MainActivity) _textureView.getContext();
             hostActivity.updateZoomLabel();
 
             // always save the current zoom factor

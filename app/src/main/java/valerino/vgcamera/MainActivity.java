@@ -14,7 +14,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.TextureView;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageView;
@@ -35,6 +35,8 @@ public class MainActivity extends Activity {
     private GestureDetector _gestureDetector = null;
     private Menu _menu = null;
     private File _tmpMedia = null;
+    private boolean _isVideo = false;
+    private boolean _isShortPress = false;
 
     /**
      * this is the operation mode in which the app is working
@@ -51,6 +53,8 @@ public class MainActivity extends Activity {
     private enum DONE_STATUS {
         STATUS_OK,  // media saved ok
         STATUS_CANCELED, // media canceled (taken media deleted)
+        STATUS_STOP_VIDEO, // video stopped
+        STATUS_START_VIDEO, // video started
         STATUS_ERROR // error saving media
     };
 
@@ -81,6 +85,7 @@ public class MainActivity extends Activity {
         ImageView locImg = (ImageView) findViewById(R.id.locationImage);
         ImageView smoothImg = (ImageView) findViewById(R.id.smoothZoomImage);
         ImageView saveImg = (ImageView) findViewById(R.id.autoSaveImage);
+        ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
 
         // apply scaling (they're 50x50)
         // TODO: avoid scaling at runtime, just scale the images with gimp once for all :)
@@ -90,6 +95,8 @@ public class MainActivity extends Activity {
         smoothImg.setScaleY((float) 0.5);
         saveImg.setScaleX((float) 0.5);
         saveImg.setScaleY((float) 0.5);
+        modeImg.setScaleX((float) 0.5);
+        modeImg.setScaleY((float) 0.5);
 
         // enable/disable the whole overlay
         boolean enabled = (AppConfiguration.instance(this).overlayMode() == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
@@ -98,6 +105,7 @@ public class MainActivity extends Activity {
             locImg.setVisibility(View.INVISIBLE);
             smoothImg.setVisibility(View.INVISIBLE);
             saveImg.setVisibility(View.INVISIBLE);
+            modeImg.setVisibility(View.INVISIBLE);
             return;
         }
 
@@ -299,9 +307,17 @@ public class MainActivity extends Activity {
             case STATUS_ERROR:
                 img.setImageResource(R.drawable.ic_warning_50);
                 break;
+            case STATUS_STOP_VIDEO:
+                img.setImageResource(R.drawable.ic_video_off_50);
+                break;
+            case STATUS_START_VIDEO:
+                img.setImageResource(R.drawable.ic_video_50);
+                break;
+            default:
+                return;
         }
 
-        // make the result label visible for just 2 seconds
+        // make the result label visible for just 1 seconds
         img.setVisibility(View.VISIBLE);
         Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
@@ -309,13 +325,56 @@ public class MainActivity extends Activity {
             public void run() {
                 img.setVisibility(View.INVISIBLE);
 
-                if (restartPreview) {
-                    // and restart preview
-                    CamController.instance(ctx).startPreview();
-                }
             }
-        }, 2000);
+        }, 1000);
 
+        if (restartPreview) {
+            // and restart preview
+            CamController.instance(ctx).startPreview();
+        }
+    }
+
+    /**
+     * start recording a video
+     */
+    private void startRecording() {
+        if (_isVideo) {
+            // no effect
+            AudioManager audio = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
+            audio.playSoundEffect(Sounds.DISMISSED);
+            return;
+        }
+        else {
+            // signal start
+            AudioManager audio = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
+            audio.playSoundEffect(Sounds.SUCCESS);
+            signalDone(this,DONE_STATUS.STATUS_START_VIDEO,false);
+        }
+        _isVideo = true;
+
+        // change mode icon to video
+        ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
+        modeImg.setImageResource(R.drawable.ic_video_50);
+        setupOverlay();
+    }
+
+    /**
+     * stop recording a video
+     */
+    private void stopRecording() {
+        if (!_isVideo) {
+            // only valid in video mode
+            return;
+        }
+        _isVideo = false;
+
+        // signal stop
+        signalDone(this, DONE_STATUS.STATUS_STOP_VIDEO, false);
+
+        // change mode icon to camera
+        ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
+        modeImg.setImageResource(R.drawable.ic_camera_50);
+        setupOverlay();
     }
 
     /**
@@ -446,6 +505,16 @@ public class MainActivity extends Activity {
                 takePicture(this);
                 break;
 
+            case R.id.stop_video:
+                // stop recording a video
+                stopRecording();
+                break;
+
+            case R.id.record_video:
+                // start recording a video
+                startRecording();
+                break;
+
             case R.id.close_app:
                 // close application
                 closeApp();
@@ -505,9 +574,6 @@ public class MainActivity extends Activity {
         // set the main layout
         setContentView(R.layout.preview_layout);
 
-        // this is the texture view we'll blit on
-        TextureView cameraTextureView = (TextureView) findViewById(R.id.cameraTextureView);
-
         // add the overlay layer
         AppConfiguration.instance(this).setOverlayMode(AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY);
 
@@ -518,12 +584,21 @@ public class MainActivity extends Activity {
                 WindowManager.LayoutParams.MATCH_PARENT);
         addContentView(overlays, layoutParamsControl);
 
+
+        /*
+        // this is the texture view we'll blit on
+        TextureView cameraTextureView = (TextureView) findViewById(R.id.cameraTextureView);
+
         // screen must be always on
         cameraTextureView.setKeepScreenOn(true);
 
         // setup the listener to show/hide the preview
-        CamController.instance(this).setView(cameraTextureView);
+        CamController.instance(this).setTextureView(cameraTextureView);
         cameraTextureView.setSurfaceTextureListener(CamController.instance(this));
+        */
+        SurfaceView sv = (SurfaceView) findViewById(R.id.cameraSurfaceView);
+        CamController.instance(this).setSurfaceView(sv);
+        sv.getHolder().addCallback(CamController.instance(this));
     }
 
     @Override
@@ -587,11 +662,48 @@ public class MainActivity extends Activity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_CAMERA) {
-            // take a picture when the camera button is pressed, avoid propagating to the default camera
-            takePicture(this);
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                event.startTracking();
+                if (event.getRepeatCount() == 0) {
+                    // set a flag to indicate short press, and offload to onKeyUp()
+                    _isShortPress = true;
+                }
+            }
             return true;
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_CAMERA) {
+            if (_isShortPress) {
+                if (_isVideo) {
+                    // stop recording
+                    stopRecording();
+                }
+                else {
+                    // take picture
+                    takePicture(this);
+                }
+                _isShortPress = false;
+            }
+            return true;
+        }
+        return super.onKeyUp(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyLongPress(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_CAMERA) {
+            _isShortPress = false;
+            if (!_isVideo) {
+                // start recording
+                startRecording();
+            }
+            return true;
+        }
+        return super.onKeyLongPress(keyCode, event);
     }
 
     @Override
@@ -600,11 +712,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * create the gestures detector to detect for swipes
-     * swipe left/right : zoom in/out
-     * tap : show cards
-     * double tap: take picture
-     * triple tap : take video
+     * create the gestures detector to detect for swipes and touchpad taps
      * @param ctx a Context
      * @return
      */
@@ -638,6 +746,21 @@ public class MainActivity extends Activity {
                 else if (gesture == Gesture.TWO_TAP) {
                     // take picture
                     takePicture(ctx);
+                    return true;
+                }
+                else if (gesture == Gesture.THREE_TAP) {
+                    // record a video
+                    startRecording();
+                    return true;
+                }
+                else if (gesture == Gesture.LONG_PRESS) {
+                    // stop recording
+                    stopRecording();
+                    return true;
+                }
+                else if (gesture == Gesture.SWIPE_DOWN) {
+                    // close
+                    finish();
                     return true;
                 }
                 return false;

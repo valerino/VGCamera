@@ -59,4 +59,13 @@
         android:layout_alignParentEnd="true"
         android:visibility="visible"/>
 
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/modeImageView"
+        android:src="@drawable/ic_camera_50"
+        android:scaleType="matrix"
+        android:layout_above="@+id/zoomText"
+        android:layout_alignParentEnd="true"/>
+
 </RelativeLayout>
