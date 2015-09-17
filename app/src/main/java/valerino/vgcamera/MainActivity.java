@@ -383,41 +383,61 @@ public class MainActivity extends Activity {
 
     /**
      * stop recording a video
+     * @param ctx a Context
      */
-    private void stopRecording() {
+    private void stopRecording(final Context ctx) {
         if (!_isVideo) {
             // only valid in video mode
             signalStatus(this, DONE_STATUS.STATUS_UNSUPPORTED, false);
             return;
         }
 
-        // get the currently recorded media
-        _tmpMedia = CamController.instance(this).stopRecorder(false);
-        if (_tmpMedia == null) {
-            // signal error
-            signalStatus(this, DONE_STATUS.STATUS_ERROR, false);
-        }
-        else {
-            // signal stop
-            signalStatus(this, DONE_STATUS.STATUS_STOP_VIDEO, false);
+        // use an async task, since snapPicture() would block the UI thread
+        AsyncTask<Void, Void, File> t = new AsyncTask<Void, Void, File>() {
+            @Override
+            protected File doInBackground(Void... params) {
+                // get the currently recorded media
+                File f  = CamController.instance(ctx).stopRecorder(false);
+                if (f == null) {
+                    return null;
+                }
 
-            if (AppConfiguration.instance(this).autoSave()) {
-                // directly save
-                boolean ok = (saveMedia() != null);
-                signalStatus(this, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, false);
+                // store it as a global, for commodity ....
+                _tmpMedia = f;
+                return f;
             }
-            else {
-                // user will take action
-                CamController.instance(this).stopPreview();
-                switchPanelMenu(OPERATION_MODE.MODE_TAKEN);
-            }
-        }
 
-        // change mode icon to camera
-        _isVideo = false;
-        ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
-        modeImg.setImageResource(R.drawable.ic_camera_50);
-        setupOverlay();
+            @Override
+            protected void onPostExecute(File f) {
+                if (f == null) {
+                    // some error here
+                    signalStatus(ctx, DONE_STATUS.STATUS_ERROR, false);
+                    return;
+                }
+
+                // we have a video
+                // signal stop
+                signalStatus(ctx, DONE_STATUS.STATUS_STOP_VIDEO, false);
+                if (AppConfiguration.instance(ctx).autoSave()) {
+                    // directly save
+                    boolean ok = (saveMedia() != null);
+                    signalStatus(ctx, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, false);
+                }
+                else {
+                    // user will take action
+                    switchPanelMenu(OPERATION_MODE.MODE_TAKEN);
+                }
+
+                // change mode icon to camera
+                _isVideo = false;
+                ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
+                modeImg.setImageResource(R.drawable.ic_camera_50);
+                setupOverlay();
+            }
+        };
+
+        // run the task
+        t.execute();
     }
 
     /**
@@ -450,6 +470,7 @@ public class MainActivity extends Activity {
             protected void onPostExecute(File f) {
                 if (f == null) {
                     // some error here
+                    signalStatus(ctx, DONE_STATUS.STATUS_ERROR, false);
                     return;
                 }
 
@@ -562,7 +583,7 @@ public class MainActivity extends Activity {
 
             case R.id.stop_video:
                 // stop recording a video
-                stopRecording();
+                stopRecording(this);
                 break;
 
             case R.id.record_video:
@@ -731,7 +752,7 @@ public class MainActivity extends Activity {
             if (_isShortPress) {
                 if (_isVideo) {
                     // stop recording
-                    stopRecording();
+                    stopRecording(this);
                 }
                 else {
                     // take picture
@@ -813,7 +834,7 @@ public class MainActivity extends Activity {
                 }
                 else if (gesture == Gesture.LONG_PRESS) {
                     // stop recording
-                    stopRecording();
+                    stopRecording(ctx);
                     return true;
                 }
                 else if (gesture == Gesture.SWIPE_DOWN) {
