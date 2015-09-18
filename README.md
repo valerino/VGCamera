@@ -6,6 +6,7 @@
 * Can be controlled via touchpad too
 * Always shows what the camera is looking at (preview mode), no more shooting pictures blindly!
 * Zoom, can take zoomed pictures and/or videos
+* Can take pictures while recording videos
 * Configurable quality (high/low) for both videos and pictures
 * Autosave (restart preview immediately after taken picture/video)
 * Geotagging
@@ -28,11 +29,12 @@ Both modes can be controlled either handsfree and/or with the touchpad simultane
  3. Start video recording with 'Ok Glass' -> 'Record a video' as usual
  4. Stop video recording with 'Ok Glass' -> 'Stop'
  5. Zoom with 'Ok Glass' -> 'Zoom' -> 'In' / 'Out'
- 6. Toggle Maximum Zoom with 'Ok Glass' -> 'Zoom' -> 'Max ON' / 'Max OFF'
- 7. Toggle Smooth Zoom with 'Ok Glass' -> 'Zoom' -> 'Smooth ON' / 'Smooth OFF'
- 8. Toggle Autosave with 'Ok Glass' -> 'Options' -> 'Autosave ON' / 'Autosave OFF'    
- 9. Toggle Geotagging with 'Ok glass' -> 'Options' -> 'Geotag ON' / 'Geotag OFF'    
- 10. Toggle Overlay with 'Ok glass' -> 'Options' -> 'Overlay ON' / 'Overlay OFF'    
+ 6. Toggle Maximum Zoom with 'Ok Glass' -> 'Zoom' -> 'Max'
+ 7. Toggle Smooth Zoom with 'Ok Glass' -> 'Zoom' -> 'Smooth'
+ 8. Toggle Autosave with 'Ok Glass' -> 'Options' -> 'Autosave'
+ 9. Toggle Geotagging with 'Ok glass' -> 'Options' -> 'Geotag'
+ 10. Toggle Overlay with 'Ok glass' -> 'Options' -> 'Overlay'
+ 10. Toggle Quality High/Low with 'Ok glass' -> 'Options' -> 'Quality'
  11. Close app with 'Close'
 
 ###Taken mode
@@ -44,11 +46,13 @@ If Autosave is not set, after taking a picture (or video recording has been stop
 
 ##Touchpad
 ###Preview mode
-1. Single finger tap on the touchpad shows scrollable configuration toggles for Geotagging, Autosave, Max zoom, Smooth zoom and Overlays
+1. Single finger tap on the touchpad shows scrollable configuration toggles for Geotagging, Autosave, Max zoom, Smooth zoom and Overlays (Only on autosave, look 6)
 2. Swipe left/right zooms in/out
-3. Double finger tap / Pressing the camera button takes a picture
-4. Three finger tap / Long pressing the camera button starts video recording
-5. While in video recording mode, long tap / Pressing the camera button stops recording
+3. Double finger tap / Single pressing the camera button takes a picture
+4. Three finger tap / Long pressing the camera button starts/stop video recording
+5. While in video recording mode, you can still take pictures with double finger tap/single click on camera button and/or zoom as normal!
+6. If Autosave is Off, while video recording the preview can't be interrupted so cards are not shown with single finger tap.
+   So, to save/delete taken picture while recording use single/double long press on the touchpad once the preview is shown.
 
 ###Taken mode
 If Autosave is not set, after taking a picture (or video recording has been stopped), single tapping the touchpad you're presented with scrollable cards to Save, Discard or Share the taken media.

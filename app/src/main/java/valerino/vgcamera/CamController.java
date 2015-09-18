@@ -7,15 +7,12 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
-import android.os.Environment;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -30,6 +27,12 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
     private int _savedZoom = 0;
     private MediaRecorder _mediaRecorder = null;
     private File _tmpVideo = null;
+    private CAM_MODE _mode = CAM_MODE.MODE_PHOTO;
+
+    public enum CAM_MODE {
+        MODE_VIDEO,
+        MODE_PHOTO
+    }
 
     /**
      * constructor (use instance())
@@ -82,6 +85,13 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
     }
 
     /**
+     * get the cam mode (video/photo)
+     */
+    public CAM_MODE mode() {
+        return _mode;
+    }
+
+    /**
      * start the preview
      */
     public void startPreview() {
@@ -102,7 +112,6 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
         Camera.Parameters params = _camera.getParameters();
         params.setPreviewFpsRange(30000, 30000);
         params.setPreviewSize(640, 360);
-        params.setZoom(_savedZoom);
         _camera.setZoomChangeListener(this);
         _camera.setParameters(params);
 
@@ -212,19 +221,6 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
     }
 
     /**
-     * toggle max zoom on/off
-     */
-    public void toggleMaxZoom() {
-        if (AppConfiguration.instance(_context).maxZoomMode()) {
-            // zoom to max
-            setMaxZoom();
-        } else {
-            // no zoom
-            setZoom(0);
-        }
-    }
-
-    /**
      * zoom the image IN
      */
     public void zoomIn() {
@@ -306,7 +302,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
      * starts the videorecorder
      * @return boolean true if start is successful
      */
-    public boolean startRecorder() {
+    public boolean camStartRecord() {
         if (_camera == null) {
             Log.w(this.getClass().getName(), "camera not yet initialized");
             return false;
@@ -322,6 +318,8 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
         else {
             profile = CamcorderProfile.get(CamcorderProfile.QUALITY_LOW);
         }
+
+        /// setup source
         _mediaRecorder.setCamera(_camera);
         _camera.stopPreview();
         _camera.unlock();
@@ -331,7 +329,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
 
         // set display
         _mediaRecorder.setPreviewDisplay(_surfaceView.getHolder().getSurface());
-        if (AppConfiguration.instance(_context).addLocation()) {
+        if (AppConfiguration.instance(_context).geoTagging()) {
             // get the last location first
             Location loc = getLocation();
             if (loc != null) {
@@ -339,18 +337,20 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
             }
         }
 
-        // generate filename
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
-        _tmpVideo = new File(Environment.getExternalStorageDirectory(), timeStamp + ".mp4");
+        // set temp file
+        _tmpVideo = Utils.getTempMediaFile(CAM_MODE.MODE_VIDEO);
         _mediaRecorder.setOutputFile(_tmpVideo.getAbsolutePath());
         try {
             _mediaRecorder.prepare();
         } catch (IOException e) {
             Log.d(this.getClass().getName(), "mediaRecorder.prepare()", e);
-            stopRecorder(true);
+            camStopRecord(true);
             return false;
         }
+
+        // start
         _mediaRecorder.start();
+        _mode = CAM_MODE.MODE_VIDEO;
         return true;
     }
 
@@ -359,7 +359,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
      * @param deleteFile true to delete the captured file
      * @return path to the temporary file
      */
-    public File stopRecorder(boolean deleteFile) {
+    public File camStopRecord(boolean deleteFile) {
         if (_mediaRecorder == null) {
             return null;
         }
@@ -367,7 +367,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
         _mediaRecorder.stop();
         _mediaRecorder.release();
         _mediaRecorder = null;
-        startPreview();
+        _mode = CAM_MODE.MODE_PHOTO;
 
         if (_tmpVideo != null) {
             if (deleteFile) {
@@ -388,7 +388,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
      * takes a picture
      * @return path to the temporary file created (the taken picture)
      */
-    public File snapPicture() {
+    public File camTakePicture() {
         if (_camera == null) {
             Log.w(this.getClass().getName(), "camera not yet initialized");
             return null;
@@ -405,7 +405,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
             params.setPictureSize(1296, 972);
         }
 
-        if (AppConfiguration.instance(_context).addLocation()) {
+        if (AppConfiguration.instance(_context).geoTagging()) {
             // get the last location first
             Location loc = getLocation();
             if (loc != null) {
@@ -428,12 +428,8 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
         _camera.takePicture(null, null, new Camera.PictureCallback() {
             @Override
             public void onPictureTaken(byte[] bytes, Camera camera) {
-                // stop the preview
-                _camera.stopPreview();
-
                 // save a temporary image
-                String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
-                File f = new File(Environment.getExternalStorageDirectory(), timeStamp + ".jpg");
+                File f = Utils.getTempMediaFile(CAM_MODE.MODE_PHOTO);
                 f = Utils.bufferToFile(bytes, f.getAbsolutePath());
                 tmpImage[0] = f;
                 if (f == null) {
@@ -478,6 +474,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
 
     /**
      * update the host zoom label (in MainActivity)
+     * TODO: should be done in MainActivity!
      */
     private void updateZoomLabelHost(Camera camera) {
         try {

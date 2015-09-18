@@ -3,10 +3,11 @@ package valerino.vgcamera;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.media.AudioManager;
+import android.hardware.Camera;
 import android.media.MediaScannerConnection;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -35,8 +36,9 @@ public class MainActivity extends Activity {
     private GestureDetector _gestureDetector = null;
     private Menu _menu = null;
     private File _tmpMedia = null;
-    private boolean _isVideo = false;
     private boolean _isShortPress = false;
+    private int _timerCount = 0;
+    private CountDownTimer _timer = null;
 
     /**
      * this is the operation mode in which the app is working
@@ -56,6 +58,7 @@ public class MainActivity extends Activity {
         STATUS_STOP_VIDEO, // video stopped
         STATUS_START_VIDEO, // video started
         STATUS_ERROR, // error saving media
+        STATUS_GOT_PICTURE, // got a picture
         STATUS_UNSUPPORTED // unsupported in the current mode
     }
 
@@ -115,7 +118,7 @@ public class MainActivity extends Activity {
         }
 
         // // set visible options based on configuration
-        locImg.setVisibility(AppConfiguration.instance(this).addLocation() ? View.VISIBLE : View.INVISIBLE);
+        locImg.setVisibility(AppConfiguration.instance(this).geoTagging() ? View.VISIBLE : View.INVISIBLE);
         smoothImg.setVisibility(AppConfiguration.instance(this).smoothZoom() ? View.VISIBLE : View.INVISIBLE);
         saveImg.setVisibility(AppConfiguration.instance(this).autoSave() ? View.VISIBLE : View.INVISIBLE);
         qualityImg.setVisibility(AppConfiguration.instance(this).quality() == AppConfiguration.QUALITY.HIGH ? View.VISIBLE : View.INVISIBLE);
@@ -140,7 +143,7 @@ public class MainActivity extends Activity {
         menu.findItem(R.id.zoom_toggle_smooth).setTitle(s + (enabled ? off : on));
 
         // geotag
-        enabled = AppConfiguration.instance(this).addLocation();
+        enabled = AppConfiguration.instance(this).geoTagging();
         s = getResources().getString(R.string.toggle_location);
         menu.findItem(R.id.toggle_location).setTitle(s + (enabled ? off : on));
 
@@ -157,7 +160,7 @@ public class MainActivity extends Activity {
         // quality
         boolean qualityHigh = (AppConfiguration.instance(this).quality() == AppConfiguration.QUALITY.HIGH);
         s = getResources().getString(R.string.toggle_quality);
-        menu.findItem(R.id.toggle_overlay).setTitle(s + (qualityHigh ? " LOW" : " HIGH"));
+        menu.findItem(R.id.toggle_quality).setTitle(s + (qualityHigh ? " LOW" : " HIGH"));
     }
 
     /**
@@ -182,18 +185,32 @@ public class MainActivity extends Activity {
      * toggle the max zoom mode
      */
     void toggleMaxZoom() {
-        boolean currentMaxZoomMode = AppConfiguration.instance(this).maxZoomMode();
-        AppConfiguration.instance(this).setMaxZoomMode(!currentMaxZoomMode);
-        CamController.instance(this).toggleMaxZoom();
-        setupOverlay();
+        // toggle configuration param
+        AppConfiguration config = AppConfiguration.instance(this);
+        boolean enabled = config.maxZoomMode();
+        config.setMaxZoomMode(!enabled);
+
+        // toggle camera param
+        CamController cam = CamController.instance(this);
+        if (enabled) {
+            // reset
+            cam.resetZoom();
+        } else {
+            // zoom to max
+            cam.setMaxZoom();
+        }
     }
 
     /**
      * toggle smooth zoom feature on/off
      */
     void toggleSmoothZoom() {
-        boolean currentSmoothZoomMode = AppConfiguration.instance(this).smoothZoom();
-        AppConfiguration.instance(this).setSmoothZoom(!currentSmoothZoomMode);
+        // toggle configuration param
+        AppConfiguration config = AppConfiguration.instance(this);
+        boolean enabled = config.smoothZoom();
+        config.setSmoothZoom(!enabled);
+
+        // update overlay
         setupOverlay();
     }
 
@@ -201,8 +218,12 @@ public class MainActivity extends Activity {
      * toggle autosave feature on/off
      */
     void toggleAutoSave() {
-        boolean currentAutosave = AppConfiguration.instance(this).autoSave();
-        AppConfiguration.instance(this).setAutoSave(!currentAutosave);
+        // toggle configuration param
+        AppConfiguration config = AppConfiguration.instance(this);
+        boolean enabled = config.autoSave();
+        config.setAutoSave(!enabled);
+
+        // update overlay
         setupOverlay();
     }
 
@@ -210,15 +231,19 @@ public class MainActivity extends Activity {
      * toggle quality hi/lo
      */
     void toggleQuality() {
-        AppConfiguration.QUALITY currentQuality = AppConfiguration.instance(this).quality();
+        // toggle configuration param
+        AppConfiguration config = AppConfiguration.instance(this);
+        AppConfiguration.QUALITY currentQuality = config.quality();
         if (currentQuality == AppConfiguration.QUALITY.HIGH) {
             // low quality
-            AppConfiguration.instance(this).setQuality(AppConfiguration.QUALITY.LOW);
+            config.setQuality(AppConfiguration.QUALITY.LOW);
         }
         else {
             // high quality
-            AppConfiguration.instance(this).setQuality(AppConfiguration.QUALITY.HIGH);
+            config.setQuality(AppConfiguration.QUALITY.HIGH);
         }
+
+        // update overlay
         setupOverlay();
     }
 
@@ -226,8 +251,12 @@ public class MainActivity extends Activity {
      * toggle geotagging on/off
      */
     void toggleGeotagging() {
-        boolean currentGeotagging = AppConfiguration.instance(this).addLocation();
-        AppConfiguration.instance(this).setAddLocation(!currentGeotagging);
+        // toggle configuration param
+        AppConfiguration config = AppConfiguration.instance(this);
+        boolean enabled = config.geoTagging();
+        config.setGeotagging(!enabled);
+
+        // update overlay
         setupOverlay();
     }
 
@@ -246,7 +275,10 @@ public class MainActivity extends Activity {
             initializeOptionsMenu(_menu);
 
             // restart preview too
-            CamController.instance(this).startPreview();
+            Camera cam = CamController.instance(this).camera();
+            if (cam != null) {
+                cam.startPreview();
+            }
         }
         else {
             // we got a media, we're in the taken menu
@@ -283,24 +315,26 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * discard taken media and restart preview
-     * @param playSound true to play sound
+     * delete cached media
      */
-    private void discardMedia(boolean playSound) {
-        // delete cached media
+    private void cleanup() {
         if (_tmpMedia != null) {
             _tmpMedia.delete();
         }
-        signalStatus(this, DONE_STATUS.STATUS_CANCELED, false);
+    }
+
+    /**
+     * discard the taken media and show canceled icon
+     */
+    private void discardMedia() {
+        cleanup();
+        signalStatus(this, DONE_STATUS.STATUS_CANCELED);
     }
 
     /**
      * close application
      */
     void closeApp() {
-        if (_tmpMedia != null) {
-            _tmpMedia.delete();
-        }
         finish();
     }
 
@@ -308,40 +342,43 @@ public class MainActivity extends Activity {
      * signal status through audio and an icon in the center of the screen
      * @param ctx a Context
      * @param status one of the DONE_STATUS
-     * @param restartPreview true to restart the preview
      */
-    private void signalStatus(final Context ctx, DONE_STATUS status, final boolean restartPreview) {
+    private void signalStatus(final Context ctx, DONE_STATUS status) {
         final ImageView img = (ImageView)findViewById(R.id.takenResultImage);
-        AudioManager am = (AudioManager)this.getSystemService(Context.AUDIO_SERVICE);
         switch (status) {
             case STATUS_OK:
                 img.setImageResource(R.drawable.ic_done_50);
-                am.playSoundEffect(Sounds.SUCCESS);
+                Utils.playSound(ctx,Sounds.SUCCESS);
                 break;
             case STATUS_CANCELED:
                 img.setImageResource(R.drawable.ic_delete_50);
-                am.playSoundEffect(Sounds.DISMISSED);
+                Utils.playSound(ctx, Sounds.DISMISSED);
                 break;
             case STATUS_ERROR:
                 img.setImageResource(R.drawable.ic_warning_50);
-                am.playSoundEffect(Sounds.ERROR);
+                Utils.playSound(ctx, Sounds.ERROR);
                 break;
             case STATUS_STOP_VIDEO:
                 img.setImageResource(R.drawable.ic_video_off_50);
-                am.playSoundEffect(Sounds.SUCCESS);
+                Utils.playSound(ctx, Sounds.SUCCESS);
                 break;
             case STATUS_START_VIDEO:
                 img.setImageResource(R.drawable.ic_video_50);
-                am.playSoundEffect(Sounds.SUCCESS);
+                Utils.playSound(ctx, Sounds.SUCCESS);
                 break;
             case STATUS_UNSUPPORTED:
                 img.setImageResource(R.drawable.ic_no_50);
-                am.playSoundEffect(Sounds.DISALLOWED);
+                Utils.playSound(ctx, Sounds.DISALLOWED);
+                break;
+            case STATUS_GOT_PICTURE:
+                img.setImageResource(R.drawable.ic_camera_50);
+                Utils.playSound(ctx, Sounds.SUCCESS);
+                break;
             default:
                 return;
         }
 
-        // make the result label visible for just 1 seconds
+        // make the result label visible for just 1 second
         img.setVisibility(View.VISIBLE);
         Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
@@ -351,10 +388,59 @@ public class MainActivity extends Activity {
 
             }
         }, 1000);
+    }
 
-        if (restartPreview) {
-            // and restart preview
-            CamController.instance(ctx).startPreview();
+    /**
+     * start recorder timer
+     */
+    private void startRecordingTimer() {
+        // reset counter
+        _timerCount = 0;
+
+        // start the timer
+        _timer = new CountDownTimer(Long.MAX_VALUE, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                _timerCount++;
+
+                // get hours/mins/secs
+                int hours = _timerCount / 3600;
+                int minutes = (_timerCount % 3600) / 60;
+                int seconds = _timerCount % 60;
+
+                // set the time
+                String s = String.format("%02d:%02d:%02d", hours, minutes, seconds);
+                final TextView tv = (TextView) findViewById(R.id.videoTimeText);
+                tv.setText(s);
+            }
+
+            @Override
+            public void onFinish() {
+
+            }
+        };
+        _timer.start();
+    }
+
+    /**
+     * stop recorder timer
+     */
+    private void stopRecordingTimer() {
+        _timer.cancel();
+        _timer = null;
+    }
+
+    /**
+     * show the recording timer
+     * @param show true to show, false to hide
+     */
+    private void showRecordingTimer(boolean show) {
+        final TextView tv = (TextView) findViewById(R.id.videoTimeText);
+        if (show) {
+            tv.setVisibility(View.VISIBLE);
+        }
+        else {
+            tv.setVisibility(View.GONE);
         }
     }
 
@@ -362,22 +448,26 @@ public class MainActivity extends Activity {
      * start recording a video
      */
     private void startRecording() {
-        if (_isVideo) {
+        CamController cam = CamController.instance(this);
+        if (cam.mode() == CamController.CAM_MODE.MODE_VIDEO) {
             // no effect
-            signalStatus(this, DONE_STATUS.STATUS_UNSUPPORTED, false);
+            signalStatus(this, DONE_STATUS.STATUS_UNSUPPORTED);
             return;
         }
 
         // start recording
-        if (CamController.instance(this).startRecorder()) {
+        if (cam.camStartRecord()) {
             // signal start
-            signalStatus(this, DONE_STATUS.STATUS_START_VIDEO, false);
+            signalStatus(this, DONE_STATUS.STATUS_START_VIDEO);
 
             // change mode icon to video
-            _isVideo = true;
             ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
             modeImg.setImageResource(R.drawable.ic_video_50);
             setupOverlay();
+
+            // start recording timer
+            showRecordingTimer(true);
+            startRecordingTimer();
         }
     }
 
@@ -386,22 +476,33 @@ public class MainActivity extends Activity {
      * @param ctx a Context
      */
     private void stopRecording(final Context ctx) {
-        if (!_isVideo) {
-            // only valid in video mode
-            signalStatus(this, DONE_STATUS.STATUS_UNSUPPORTED, false);
+        final CamController cam = CamController.instance(this);
+        if (cam.mode() != CamController.CAM_MODE.MODE_VIDEO) {
+            // no effect
+            signalStatus(this, DONE_STATUS.STATUS_UNSUPPORTED);
             return;
         }
 
-        // use an async task, since snapPicture() would block the UI thread
+        // signal stop
+        signalStatus(ctx, DONE_STATUS.STATUS_STOP_VIDEO);
+
+        // stop timer
+        stopRecordingTimer();
+
+        // use an async task, since camTakePicture() would block the UI thread
         AsyncTask<Void, Void, File> t = new AsyncTask<Void, Void, File>() {
             @Override
             protected File doInBackground(Void... params) {
                 // get the currently recorded media
-                File f  = CamController.instance(ctx).stopRecorder(false);
+                File f  = cam.camStopRecord(false);
                 if (f == null) {
                     return null;
                 }
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
 
+                }
                 // store it as a global, for commodity ....
                 _tmpMedia = f;
                 return f;
@@ -411,25 +512,24 @@ public class MainActivity extends Activity {
             protected void onPostExecute(File f) {
                 if (f == null) {
                     // some error here
-                    signalStatus(ctx, DONE_STATUS.STATUS_ERROR, false);
+                    signalStatus(ctx, DONE_STATUS.STATUS_ERROR);
                     return;
                 }
 
                 // we have a video
-                // signal stop
-                signalStatus(ctx, DONE_STATUS.STATUS_STOP_VIDEO, false);
                 if (AppConfiguration.instance(ctx).autoSave()) {
                     // directly save
                     boolean ok = (saveMedia() != null);
-                    signalStatus(ctx, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, false);
+                    signalStatus(ctx, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR);
+                    showRecordingTimer(false);
                 }
                 else {
                     // user will take action
+                    showTakenThumbnail(true);
                     switchPanelMenu(OPERATION_MODE.MODE_TAKEN);
                 }
 
                 // change mode icon to camera
-                _isVideo = false;
                 ImageView modeImg = (ImageView) findViewById(R.id.modeImageView);
                 modeImg.setImageResource(R.drawable.ic_camera_50);
                 setupOverlay();
@@ -441,22 +541,33 @@ public class MainActivity extends Activity {
     }
 
     /**
+     * show thumbnail of taken image/video
+     * @param show true to show, false to hide
+     */
+    private void showTakenThumbnail(boolean show) {
+        ImageView iv = (ImageView)findViewById(R.id.takenImageView);
+        if (show) {
+            // show thumbnail
+            Utils.setMediaThumbnail(this, _tmpMedia, iv);
+            iv.setVisibility(View.VISIBLE);
+        }
+        else {
+            // hide the thumbnail view so preview can get in front
+            iv.setVisibility(View.GONE);
+        }
+    }
+
+    /**
      * take a picture
      * @param ctx a Context
      */
     private void takePicture(final Context ctx) {
-        if (_isVideo) {
-            // can't take a picture while recording video
-            signalStatus(ctx, DONE_STATUS.STATUS_UNSUPPORTED, false);
-            return;
-        }
-
-        // use an async task, since snapPicture() would block the UI thread
+        // use an async task, since camTakePicture() would block the UI thread
         AsyncTask<Void, Void, File> t = new AsyncTask<Void, Void, File>() {
             @Override
             protected File doInBackground(Void... params) {
                 // take picture, will stop the preview
-                File f = CamController.instance(ctx).snapPicture();
+                File f = CamController.instance(ctx).camTakePicture();
                 if (f == null) {
                     return null;
                 }
@@ -470,7 +581,7 @@ public class MainActivity extends Activity {
             protected void onPostExecute(File f) {
                 if (f == null) {
                     // some error here
-                    signalStatus(ctx, DONE_STATUS.STATUS_ERROR, false);
+                    signalStatus(ctx, DONE_STATUS.STATUS_ERROR);
                     return;
                 }
 
@@ -478,10 +589,14 @@ public class MainActivity extends Activity {
                 if (AppConfiguration.instance(ctx).autoSave()) {
                     // directly save and restart preview (taking picture disable the preview)
                     boolean ok = (saveMedia() != null);
-                    signalStatus(ctx, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, true);
+                    signalStatus(ctx, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR);
                 }
                 else {
+                    // show a thumbnail, and user will take action
+                    showTakenThumbnail(true);
+
                     // user will take action
+                    signalStatus(ctx, DONE_STATUS.STATUS_GOT_PICTURE);
                     switchPanelMenu(OPERATION_MODE.MODE_TAKEN);
                 }
             }
@@ -489,6 +604,19 @@ public class MainActivity extends Activity {
 
         // run the task
         t.execute();
+    }
+
+    /**
+     * get back to preview mode from taken mode
+     */
+    private void backToPreviewMode() {
+        // restart preview if we're not in autosave mode
+        if (!AppConfiguration.instance(this).autoSave()) {
+            showTakenThumbnail(false);
+        }
+
+        // in the end, switch operation mode back to preview
+        switchPanelMenu(OPERATION_MODE.MODE_PREVIEW);
     }
 
     /**
@@ -504,22 +632,27 @@ public class MainActivity extends Activity {
             case R.id.save:
                 // save the captured image/video (preview will be restarted automatically)
                 boolean ok = (saveMedia() != null);
-                signalStatus(this, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR, false);
+                signalStatus(this, ok ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR);
                 break;
 
             case R.id.discard:
                 // discard the media
-                discardMedia(true);
+                discardMedia();
                 break;
 
             default:
                 // default is discard
-                discardMedia(false);
+                discardMedia();
                 break;
         }
 
-        // in the end, switch operation mode back to preview
-        switchPanelMenu(OPERATION_MODE.MODE_PREVIEW);
+        // hide the recording timer (if we've stopped videorecording, stopRecording() has set mode back to photo)
+        if (CamController.instance(this).mode() == CamController.CAM_MODE.MODE_PHOTO) {
+            showRecordingTimer(false);
+        }
+
+        // get back to preview
+        backToPreviewMode();
     }
 
     /**
@@ -697,16 +830,29 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onDestroy() {
+        Log.d(this.getClass().getName(), "vgcamera is destroying");
+
+        // stop camera if it's recording, deleting temporary files
+        CamController.instance(this).camStopRecord(true);
+
+        // cleanup
+        cleanup();
+
+        // do some garbage collection too
+        System.gc();
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onStop() {
+        Log.d(this.getClass().getName(), "vgcamera is stopping");
+        super.onStop();
+    }
+
+    @Override
     protected void onPause() {
         Log.d(this.getClass().getName(), "vgcamera is pausing");
-
-        // delete temporary files and do some cleanup
-        CamController.instance(this).stopRecorder(true);
-        if (_tmpMedia != null) {
-            _tmpMedia.delete();
-        }
-        System.gc();
-
         super.onPause();
     }
 
@@ -750,14 +896,8 @@ public class MainActivity extends Activity {
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_CAMERA) {
             if (_isShortPress) {
-                if (_isVideo) {
-                    // stop recording
-                    stopRecording(this);
-                }
-                else {
-                    // take picture
-                    takePicture(this);
-                }
+                // take picture
+                takePicture(this);
                 _isShortPress = false;
             }
             return true;
@@ -768,10 +908,13 @@ public class MainActivity extends Activity {
     @Override
     public boolean onKeyLongPress(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_CAMERA) {
+            // start or stop recording on longpress
             _isShortPress = false;
-            if (!_isVideo) {
-                // start recording
+            if (CamController.instance(this).mode() == CamController.CAM_MODE.MODE_PHOTO) {
                 startRecording();
+            }
+            else {
+                stopRecording(this);
             }
             return true;
         }
@@ -802,18 +945,16 @@ public class MainActivity extends Activity {
                     CamController.instance(ctx).zoomOut();
                     return true;
                 } else if (gesture == Gesture.TAP) {
+                    if (CamController.instance(ctx).mode() == CamController.CAM_MODE.MODE_VIDEO) {
+                        // videorecorder preview can't be interrupted by cards, use voice or long tap
+                        signalStatus(ctx, DONE_STATUS.STATUS_UNSUPPORTED);
+                        return true;
+                    }
                     // show cards depending on mode
                     Intent it;
                     if (_mode == OPERATION_MODE.MODE_PREVIEW) {
-                        if (_isVideo) {
-                            // in preview mode while recording, preview cant be interrupted
-                            signalStatus(ctx, DONE_STATUS.STATUS_UNSUPPORTED, false);
-                            return true;
-                        }
-                        else {
-                            // in preview mode, show cam options
-                            it = new Intent(ctx, OptionsScroller.class);
-                        }
+                        // in preview & photo mode, show cam options
+                        it = new Intent(ctx, OptionsScroller.class);
                     }
                     else {
                         // in taken mode, show save/discard/share
@@ -828,18 +969,61 @@ public class MainActivity extends Activity {
                     return true;
                 }
                 else if (gesture == Gesture.THREE_TAP) {
-                    // record a video
-                    startRecording();
-                    return true;
-                }
-                else if (gesture == Gesture.LONG_PRESS) {
-                    // stop recording
-                    stopRecording(ctx);
+                    if (CamController.instance(ctx).mode() == CamController.CAM_MODE.MODE_PHOTO) {
+                        // record a video
+                        startRecording();
+                    }
+                    else {
+                        // stop recording
+                        stopRecording(ctx);
+                    }
                     return true;
                 }
                 else if (gesture == Gesture.SWIPE_DOWN) {
-                    // close
-                    finish();
+                    // force close
+                    Utils.playSound(ctx, Sounds.DISMISSED);
+                    closeApp();
+                    return true;
+                }
+                else if (gesture == Gesture.LONG_PRESS) {
+                    if (AppConfiguration.instance(ctx).autoSave() ||
+                            CamController.instance(ctx).mode() == CamController.CAM_MODE.MODE_PHOTO) {
+                        // only when recording videos, to not confuse the user with too much taps
+                        signalStatus(ctx, DONE_STATUS.STATUS_UNSUPPORTED);
+                        return true;
+                    }
+
+                    // save media
+                    signalStatus(ctx, saveMedia() != null ? DONE_STATUS.STATUS_OK : DONE_STATUS.STATUS_ERROR);
+
+                    // get back to preview
+                    backToPreviewMode();
+                    return true;
+                }
+                else if (gesture == Gesture.TWO_LONG_PRESS) {
+                    if (AppConfiguration.instance(ctx).autoSave() ||
+                            CamController.instance(ctx).mode() == CamController.CAM_MODE.MODE_PHOTO) {
+                        // only when recording videos, to not confuse the user with too much taps
+                        signalStatus(ctx,DONE_STATUS.STATUS_UNSUPPORTED);
+                        return true;
+                    }
+                    // discard taken media
+                    discardMedia();
+                    signalStatus(ctx, DONE_STATUS.STATUS_CANCELED);
+
+                    // get back to preview
+                    backToPreviewMode();
+                    return true;
+                }
+                else if (gesture == Gesture.THREE_LONG_PRESS) {
+                    if (AppConfiguration.instance(ctx).autoSave() ||
+                            CamController.instance(ctx).mode() == CamController.CAM_MODE.MODE_PHOTO) {
+                        // only when recording videos, to not confuse the user with too much taps
+                        signalStatus(ctx,DONE_STATUS.STATUS_UNSUPPORTED);
+                        return true;
+                    }
+
+                    // TODO: share
                     return true;
                 }
                 return false;

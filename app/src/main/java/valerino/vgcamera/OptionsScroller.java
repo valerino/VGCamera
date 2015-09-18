@@ -24,12 +24,12 @@ public class OptionsScroller extends Activity {
      * these are the ids of the cards
      */
     public static final int CHOICE_TOGGLE_OVERLAY = 0;
-    public static final int CHOICE_TOGGLE_LOCATION = 1;
-    public static final int CHOICE_TOGGLE_AUTOSAVE = 2;
-    public static final int CHOICE_TOGGLE_MAXZOOM = 3;
-    public static final int CHOICE_RESET_ZOOM = 4;
+    public static final int CHOICE_TOGGLE_QUALITY = 1;
+    public static final int CHOICE_TOGGLE_LOCATION = 2;
+    public static final int CHOICE_TOGGLE_AUTOSAVE = 3;
+    public static final int CHOICE_TOGGLE_MAXZOOM = 4;
     public static final int CHOICE_TOGGLE_SMOOTHZOOM = 5;
-    public static final int CHOICE_TOGGLE_QUALITY = 6;
+    public static final int CHOICE_RESET_ZOOM = 6;
 
     @Override
     protected void onCreate(Bundle bundle) {
@@ -43,18 +43,18 @@ public class OptionsScroller extends Activity {
         final String off = " OFF";
         String s = "Overlay" + (AppConfiguration.instance(this).overlayMode() == AppConfiguration.OVERLAY_MODE.SHOW_OVERLAY ? off : on);
         adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle overlay on/off"));
-        s = "Geotagging" + (AppConfiguration.instance(this).addLocation() ? off : on);
+        s = "Quality" + (AppConfiguration.instance(this).quality() == AppConfiguration.QUALITY.HIGH ? " LOW" : " HIGH");
+        adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle capture lo/hi quality"));
+        s = "Geotagging" + (AppConfiguration.instance(this).geoTagging() ? off : on);
         adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle geotagging on/off"));
         s = "Autosave" + (AppConfiguration.instance(this).autoSave() ? off : on);
         adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle autosave on/off"));
         s = "Max-Zoom" + (AppConfiguration.instance(this).maxZoomMode() ? off : on);
         adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle max zoom on/off"));
-        s = "Reset zoom";
-        adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Reset zoom level"));
         s = "Smooth-Zoom" + (AppConfiguration.instance(this).smoothZoom() ? off : on);
         adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle smooth zoom on/off"));
-        s = "Quality" + (AppConfiguration.instance(this).quality() == AppConfiguration.QUALITY.HIGH ? " LOW" : " HIGH");
-        adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Toggle capture lo/hi quality"));
+        s = "Reset zoom";
+        adapter.cards().add(new CardBuilder(this, CardBuilder.Layout.MENU).setText(s).setFootnote("Reset zoom level"));
 
         // setup the view
         _view = new CardScrollView(this);

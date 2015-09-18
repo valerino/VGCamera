@@ -28,7 +28,7 @@ public class AppConfiguration {
 
     private boolean _autoSave;
 
-    private boolean _addLocation;
+    private boolean _geoTagging;
 
     private QUALITY _quality;
 
@@ -38,11 +38,11 @@ public class AppConfiguration {
     SharedPreferences.Editor _editor;
     Context _context;
 
-    private final static String PREFS_ADD_LOCATION = "add_location";
+    private final static String PREFS_GEOTAGGING = "geotagging";
     private final static String PREFS_AUTOSAVE = "autosave";
     private final static String PREFS_OVERLAY = "overlay";
     private final static String PREFS_SMOOTH_ZOOM = "smooth_zoom";
-    private final static String PREFS_MAX_ZOOM = "max_zoom";
+    private final static String PREFS_MAX_ZOOM = "max_zoom_mode";
     private final static String PREFS_QUALITY = "quality";
 
     public enum QUALITY {
@@ -60,7 +60,7 @@ public class AppConfiguration {
         _editor = _sharedPrefs.edit();
 
         // initialize values
-        _addLocation = _sharedPrefs.getBoolean(PREFS_ADD_LOCATION, false);
+        _geoTagging = _sharedPrefs.getBoolean(PREFS_GEOTAGGING, false);
         _autoSave = _sharedPrefs.getBoolean(PREFS_AUTOSAVE, false);
         _overlayMode = OVERLAY_MODE.valueOf(_sharedPrefs.getString(PREFS_OVERLAY, OVERLAY_MODE.SHOW_OVERLAY.toString()));
         _smoothZoom = _sharedPrefs.getBoolean(PREFS_SMOOTH_ZOOM, false);
@@ -171,11 +171,11 @@ public class AppConfiguration {
      * sets whether pictures/videos must have location added
      * @param enable true to enable
      */
-    public void setAddLocation(boolean enable) {
-        _addLocation = enable;
+    public void setGeotagging(boolean enable) {
+        _geoTagging = enable;
 
         // update prefs
-        _editor.putBoolean(PREFS_ADD_LOCATION, enable);
+        _editor.putBoolean(PREFS_GEOTAGGING, enable);
         _editor.commit();
     }
 
@@ -183,8 +183,8 @@ public class AppConfiguration {
      * returns whether pictures/videos must have location added
      * @return
      */
-    boolean addLocation() {
-        return _addLocation;
+    boolean geoTagging() {
+        return _geoTagging;
     }
 
     /**

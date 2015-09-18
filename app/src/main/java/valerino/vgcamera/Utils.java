@@ -2,6 +2,13 @@ package valerino.vgcamera;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.media.AudioManager;
+import android.media.ThumbnailUtils;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.widget.ImageView;
 
 import com.google.android.glass.widget.CardBuilder;
 
@@ -13,6 +20,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * generic utilities
@@ -200,5 +209,58 @@ public class Utils {
 
         }
         return false;
+    }
+
+    /**
+     * get a properly named File in the temporary folder
+     * @param mode one of the CamController.CAM_MODE
+     * @return
+     */
+    public static File getTempMediaFile(CamController.CAM_MODE mode) {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
+        File f = new File(Environment.getExternalStorageDirectory(), timeStamp +
+                (mode == CamController.CAM_MODE.MODE_PHOTO ? ".jpg" : ".mp4"));
+        return f;
+    }
+
+    /**
+     * play a sound
+     * @param ctx a Context
+     * @param sound sound id
+     */
+    public static void playSound (Context ctx, int sound) {
+        AudioManager am = (AudioManager)ctx.getSystemService(Context.AUDIO_SERVICE);
+        am.playSoundEffect(sound);
+    }
+
+    /**
+     * shows a thumbnail of the given media file in the given ImageView
+     * @param ctx a Context
+     * @param file path to the media file
+     * @param dest the destination ImageView
+     * @return 0 on success
+     */
+    public static int setMediaThumbnail(Context ctx, File file, ImageView dest) {
+        Bitmap bmp;
+        if (file.getAbsolutePath().endsWith(".mp4")) {
+            // generate a video thumbnail
+            bmp = ThumbnailUtils.createVideoThumbnail(file.getAbsolutePath(), MediaStore.Images.Thumbnails.MINI_KIND);
+            bmp = Bitmap.createScaledBitmap(bmp, 640, 360, false);
+        }
+        else {
+            // we have an image file
+            bmp = BitmapFactory.decodeFile(file.getAbsolutePath(), null);
+            if (bmp != null) {
+                bmp = ThumbnailUtils.extractThumbnail(bmp, 640, 360);
+            }
+        }
+
+        // done
+        if (bmp != null) {
+            dest.setImageBitmap(bmp);
+            return 0;
+        }
+
+        return -1;
     }
 }
