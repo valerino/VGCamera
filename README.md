@@ -48,11 +48,10 @@ If Autosave is not set, after taking a picture (or video recording has been stop
 ###Preview mode
 1. Single finger tap on the touchpad shows scrollable configuration toggles for Geotagging, Autosave, Max zoom, Smooth zoom and Overlays (Only on autosave, look 6)
 2. Swipe left/right zooms in/out
-3. Double finger tap / Single pressing the camera button takes a picture
-4. Three finger tap / Long pressing the camera button starts/stop video recording
-5. While in video recording mode, you can still take pictures with double finger tap/single click on camera button and/or zoom as normal!
-6. If Autosave is Off, while video recording the preview can't be interrupted so cards are not shown with single finger tap.
-   So, to save/delete taken picture while recording use single/double long press on the touchpad once the preview is shown.
+3. Press on the camera button to take a photo
+4. Longpress on the camera button to start recording
+5. Tap touchpad to stop recording if recording a video
+6. If not autosaving and while recording only, tap on the touchpad to save taken picture or video (or swipe down to delete)
 
 ###Taken mode
 If Autosave is not set, after taking a picture (or video recording has been stopped), single tapping the touchpad you're presented with scrollable cards to Save, Discard or Share the taken media.

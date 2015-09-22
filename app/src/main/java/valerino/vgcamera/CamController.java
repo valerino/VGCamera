@@ -7,6 +7,7 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
+import android.os.AsyncTask;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -19,7 +20,7 @@ import java.util.List;
  * controls the camera, singleton
  * Created by valerino on 13/09/15.
  */
-public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder.Callback {
+public class CamController implements SurfaceHolder.Callback {
     private Camera _camera = null;
     private SurfaceView _surfaceView = null;
     private Context _context = null;
@@ -28,6 +29,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
     private MediaRecorder _mediaRecorder = null;
     private File _tmpVideo = null;
     private CAM_MODE _mode = CAM_MODE.MODE_PHOTO;
+    private Camera.OnZoomChangeListener _zoomListener = null;
 
     public enum CAM_MODE {
         MODE_VIDEO,
@@ -67,6 +69,14 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
     }
 
     /**
+     * set the onzoomchange listener to update the UI
+     * @param listener an OnZoomChangeListener
+     */
+    public void setOnZoomChangeListener (Camera.OnZoomChangeListener listener) {
+        _zoomListener = listener;
+    }
+
+    /**
      * get the SurfaceView
      *
      * @return
@@ -94,25 +104,27 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
     /**
      * start the preview
      */
-    public void startPreview() {
+    synchronized public void startPreview() {
+        Log.d(this.getClass().getName(), "start previewing");
+
         // release camera if it's already
         if (_camera != null) {
             _camera.release();
         }
-        _camera = Camera.open();
         try {
+            _camera = Camera.open();
             _camera.setPreviewDisplay(_surfaceView.getHolder());
-        } catch (IOException e) {
+        } catch (Throwable e) {
             // error!
-            Log.e(this.getClass().getName(), "setPreviewDisplay(), _surfaceView=" + _surfaceView, e);
+            Log.e(this.getClass().getName(), "Camera.open() / setPreviewDisplay(), _surfaceView=" + _surfaceView, e);
             return;
         }
 
-        // update camera parameters
+        // configure camera
         Camera.Parameters params = _camera.getParameters();
         params.setPreviewFpsRange(30000, 30000);
         params.setPreviewSize(640, 360);
-        _camera.setZoomChangeListener(this);
+        _camera.setZoomChangeListener(_zoomListener);
         _camera.setParameters(params);
 
         // start preview
@@ -127,16 +139,13 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
             // restore
             setZoom(_savedZoom);
         }
-
-        // update zoom label if needed
-        MainActivity hostActivity = (MainActivity)_context;
-        hostActivity.updateZoomLabel();
     }
 
     /**
      * stop previewing
      */
-    public void stopPreview() {
+    synchronized public void stopPreview() {
+        Log.d(this.getClass().getName(), "stop previewing");
         if (_camera == null) {
             return;
         }
@@ -145,7 +154,6 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
         _camera.stopPreview();
         try {
             _camera.setPreviewDisplay(null);
-            _camera.setPreviewTexture(null);
         } catch (IOException e) {
             // error!
             Log.e(this.getClass().getName(), "setPreviewDisplay/setPreviewTexture()", e);
@@ -169,42 +177,58 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
 
     /**
      * set the camera zoom
-     *
-     * @param zoomFactor a zoom factor (must be <= camera.zoomMax())
+     * @param zoomLevel a zoom factor (must be <= camera.zoomMax())
      */
-    public void setZoom(int zoomFactor) {
-        if (_camera == null) {
-            Log.w(this.getClass().getName(), "camera not yet initialized");
-            // will be set on surfaceCreated()
-            _savedZoom = zoomFactor;
-            return;
-        }
-
-        // get parameters and current zoom factor
-        Camera.Parameters params = _camera.getParameters();
-        if (zoomFactor <= params.getMaxZoom() && zoomFactor >= 0) {
-            // set the new zoom factor
-            if (AppConfiguration.instance(_context).smoothZoom()) {
-                // zoom smoothly
-                try {
-                    _camera.startSmoothZoom(zoomFactor);
+    synchronized public void setZoom(final int zoomLevel) {
+        // use an async task
+        AsyncTask<Void, Void, Void> t = new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... params) {
+                if (_camera == null) {
+                    Log.w(this.getClass().getName(), "camera not yet initialized");
+                    // will be set on surfaceCreated()
+                    saveCurrentZoom(zoomLevel);
+                    return null;
                 }
-                catch (Throwable ex) {
-                    Log.e(this.getClass().getName(), "can't smooth-zoom");
+                if (zoomLevel == _camera.getParameters().getZoom()) {
+                    // we're already at the desired zoom level
+                    return null;
+                }
+
+                // get parameters and current zoom level
+                Camera.Parameters par = _camera.getParameters();
+                if (zoomLevel <= par.getMaxZoom() && zoomLevel >= 0) {
+                    // set the new zoom factor
+                    if (AppConfiguration.instance(_context).smoothZoom()) {
+                        // zoom smoothly
+                        try {
+                            _camera.startSmoothZoom(zoomLevel);
+                        }
+                        catch (Throwable ex) {
+                            Log.e(this.getClass().getName(), "can't smooth-zoom");
+                        }
+                    }
+                    else {
+                        // zoom normally
+                        par.setZoom(zoomLevel);
+                        _camera.setParameters(par);
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void params) {
+                if (!AppConfiguration.instance(_context).smoothZoom()) {
+                    // manually call the callback if smoothzoom is not enabled
+                    Camera.Parameters par = _camera.getParameters();
+                    _zoomListener.onZoomChange(par.getZoom(), false, _camera);
                 }
             }
-            else {
-                // zoom normally
-                params.setZoom(zoomFactor);
+        };
 
-                // set back parameters
-                _camera.setParameters(params);
-            }
-        }
-        if (!AppConfiguration.instance(_context).smoothZoom()) {
-            // manually update zoom label (either, it would be done in OnZoomChangeListener())
-            updateZoomLabelHost(_camera);
-        }
+        // run the task
+        t.execute();
     }
 
     /**
@@ -338,7 +362,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
         }
 
         // set temp file
-        _tmpVideo = Utils.getTempMediaFile(CAM_MODE.MODE_VIDEO);
+        _tmpVideo = Utils.getTempMediaFile(_context, CAM_MODE.MODE_VIDEO);
         _mediaRecorder.setOutputFile(_tmpVideo.getAbsolutePath());
         try {
             _mediaRecorder.prepare();
@@ -365,22 +389,22 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
         }
         // release the recorder's resources and restart the normal preview
         _mediaRecorder.stop();
+        _mediaRecorder.reset();
         _mediaRecorder.release();
         _mediaRecorder = null;
-        _mode = CAM_MODE.MODE_PHOTO;
 
         if (_tmpVideo != null) {
             if (deleteFile) {
                 // just delete the captured file
                 _tmpVideo.delete();
                 _tmpVideo = null;
-                return null;
             }
         }
 
         // and return the captured media
         File f = _tmpVideo;
         _tmpVideo = null;
+        _mode = CAM_MODE.MODE_PHOTO;
         return f;
     }
 
@@ -429,7 +453,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
             @Override
             public void onPictureTaken(byte[] bytes, Camera camera) {
                 // save a temporary image
-                File f = Utils.getTempMediaFile(CAM_MODE.MODE_PHOTO);
+                File f = Utils.getTempMediaFile(_context, CAM_MODE.MODE_PHOTO);
                 f = Utils.bufferToFile(bytes, f.getAbsolutePath());
                 tmpImage[0] = f;
                 if (f == null) {
@@ -452,12 +476,22 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
         }
 
         // and return path to the captured image
+        Log.d(this.getClass().getName(), "camTakePicture() returned " + tmpImage[0].getAbsolutePath());
         return tmpImage[0];
+    }
+
+    /**
+     * save the current zoom, should be called by the ZoomChange callback
+     * @param zoom
+     */
+    public void saveCurrentZoom(int zoom) {
+        _savedZoom = zoom;
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         // start the preview as soon as we have the surface
+        Log.d(this.getClass().getName(), "surfaceCreated()");
         startPreview();
     }
 
@@ -469,30 +503,7 @@ public class CamController implements Camera.OnZoomChangeListener, SurfaceHolder
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         // stop the preview once the surface is destroyed (on close)
+        Log.d(this.getClass().getName(), "surfaceDestroyed()");
         stopPreview();
-    }
-
-    /**
-     * update the host zoom label (in MainActivity)
-     * TODO: should be done in MainActivity!
-     */
-    private void updateZoomLabelHost(Camera camera) {
-        try {
-            // update the zoom label
-            MainActivity hostActivity = (MainActivity) _surfaceView.getContext();
-            hostActivity.updateZoomLabel();
-
-            // always save the current zoom factor
-            _savedZoom = camera.getParameters().getZoom();
-        }
-        catch (Throwable ex) {
-            // camera may have been released
-        }
-
-    }
-    @Override
-    public void onZoomChange(int i, boolean b, Camera camera) {
-        // update the zoom label
-        updateZoomLabelHost(camera);
     }
 }

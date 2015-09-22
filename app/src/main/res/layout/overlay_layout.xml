@@ -49,7 +49,7 @@
     <ImageView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/takenResultImage"
+        android:id="@+id/statusImage"
         android:src="@drawable/ic_done_50"
         android:layout_gravity="center_horizontal"
         android:visibility="invisible"

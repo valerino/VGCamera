@@ -6,8 +6,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
 import android.media.ThumbnailUtils;
-import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.widget.ImageView;
 
 import com.google.android.glass.widget.CardBuilder;
@@ -213,12 +213,14 @@ public class Utils {
 
     /**
      * get a properly named File in the temporary folder
+     *
+     * @param ctx a Context
      * @param mode one of the CamController.CAM_MODE
      * @return
      */
-    public static File getTempMediaFile(CamController.CAM_MODE mode) {
+    public static File getTempMediaFile(Context ctx, CamController.CAM_MODE mode) {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS").format(new Date());
-        File f = new File(Environment.getExternalStorageDirectory(), timeStamp +
+        File f = new File(AppConfiguration.instance(ctx).tmpFolder(), timeStamp +
                 (mode == CamController.CAM_MODE.MODE_PHOTO ? ".jpg" : ".mp4"));
         return f;
     }
@@ -234,33 +236,97 @@ public class Utils {
     }
 
     /**
-     * shows a thumbnail of the given media file in the given ImageView
-     * @param ctx a Context
-     * @param file path to the media file
-     * @param dest the destination ImageView
-     * @return 0 on success
+     * create a thumbnail for the given file
+     * @param file input file (.jpg or .mp4)
+     * @parm dest destination file for the thumbnail
+     * @return File, or null
      */
-    public static int setMediaThumbnail(Context ctx, File file, ImageView dest) {
+    public static File generateThumbnail (File file, File dest) {
+        Bitmap bmp = fileToThumbnail(file);
+        if (bmp == null) {
+            return null;
+        }
+
+        // save bitmap to file
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        if (bmp.compress(Bitmap.CompressFormat.JPEG, 90, bos) == false) {
+            Log.e(Utils.class.getName(), "compress() failed, file=" + file.getAbsolutePath());
+            closeNoEx(bos);
+            dest.delete();
+            return null;
+        }
+        closeNoEx(bos);
+        File f = bufferToFile(bos.toByteArray(), dest.getAbsolutePath());
+        if (f == null) {
+            Log.e(Utils.class.getName(), "bufferToFile() returned null, dest=" + dest.getAbsolutePath() + ", file=" + file.getAbsolutePath());
+        }
+        return f;
+    }
+
+    /**
+     * generate a thumbnail Bitmap for the given file
+     * @param file input file (.jpg or .mp4)
+     * @return Bitmap, or null
+     */
+    public static Bitmap fileToThumbnail (File file) {
         Bitmap bmp;
         if (file.getAbsolutePath().endsWith(".mp4")) {
             // generate a video thumbnail
             bmp = ThumbnailUtils.createVideoThumbnail(file.getAbsolutePath(), MediaStore.Images.Thumbnails.MINI_KIND);
+            if (bmp == null) {
+                Log.e(Utils.class.getName(), "createVideoThumbnail() failed, file=" + file.getAbsolutePath());
+                return null;
+            }
             bmp = Bitmap.createScaledBitmap(bmp, 640, 360, false);
-        }
-        else {
+            if (bmp == null) {
+                Log.e(Utils.class.getName(), "createScaledBitmap() failed, file=" + file.getAbsolutePath());
+                return null;
+            }
+        } else {
             // we have an image file
             bmp = BitmapFactory.decodeFile(file.getAbsolutePath(), null);
-            if (bmp != null) {
-                bmp = ThumbnailUtils.extractThumbnail(bmp, 640, 360);
+            if (bmp == null) {
+                Log.e(Utils.class.getName(), "decodeFile() failed, file=" + file.getAbsolutePath());
+                return null;
+            }
+            bmp = ThumbnailUtils.extractThumbnail(bmp, 640, 360);
+            if (bmp == null) {
+                Log.e(Utils.class.getName(), "extractThumbnail() failed, file=" + file.getAbsolutePath());
+                return null;
             }
         }
+        return bmp;
+    }
 
-        // done
-        if (bmp != null) {
-            dest.setImageBitmap(bmp);
-            return 0;
+    /**
+     * shows a thumbnail of the given media file in the given ImageView
+     * @param file path to the media file
+     * @param dest the destination ImageView
+     * @return 0 on success
+     */
+    public static int setMediaThumbnail(File file, ImageView dest) {
+        if (file == null) {
+            Log.e(Utils.class.getName(), "setMediaThumbnail(), file = null!");
+            return -1;
         }
 
-        return -1;
+        Bitmap bmp = fileToThumbnail(file);
+        if (bmp == null) {
+            return -1;
+        }
+        dest.setImageBitmap(bmp);
+        return 0;
+    }
+
+    /**
+     * thread sleep
+     * @param millisec time to sleep
+     */
+    public static void sleepThread(int millisec) {
+        try {
+            Thread.sleep(millisec);
+        } catch (InterruptedException e) {
+
+        }
     }
 }

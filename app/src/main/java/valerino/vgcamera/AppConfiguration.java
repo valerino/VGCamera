@@ -33,6 +33,7 @@ public class AppConfiguration {
     private QUALITY _quality;
 
     private File _storageFolder;
+    private File _tmpFolder;
 
     SharedPreferences _sharedPrefs;
     SharedPreferences.Editor _editor;
@@ -67,9 +68,11 @@ public class AppConfiguration {
         _maxZoomMode = _sharedPrefs.getBoolean(PREFS_MAX_ZOOM, false);
         _quality = QUALITY.valueOf(_sharedPrefs.getString(PREFS_QUALITY, QUALITY.HIGH.toString()));
 
-        // this is the storage folder (hardcoded too)
-        _storageFolder = new File (Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera");
-        //_storageFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        // this is the storage folder (hardcoded)
+        _storageFolder = new File (Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "VGCamera");
+        _storageFolder.mkdirs();
+        _tmpFolder = Environment.getExternalStorageDirectory();
+        _tmpFolder.mkdirs();
     }
 
     /**
@@ -126,6 +129,12 @@ public class AppConfiguration {
     public File storageFolder() {
         return _storageFolder;
     }
+
+    /**
+     * the temporary folder
+     * @return
+     */
+    public File tmpFolder() { return _tmpFolder; }
 
     /**
      * get the overlay mode
