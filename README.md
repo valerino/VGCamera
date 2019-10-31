@@ -1,7 +1,11 @@
-#VGCamera - valerino's glass camera
-##Google glass camera as it should have been
+# ----------------------------------------------
+# DISCONTINUED, SINCE MY GOOGLE GLASS BROKE LONG AGO :(
+# ----------------------------------------------
 
-#Features:
+# VGCamera - valerino's glass camera
+## Google glass camera as it should have been
+
+# Features:
 * Can be controlled totally hands-free (i.e. ideal for surgeons)
 * Can be controlled via touchpad too
 * Always shows what the camera is looking at (preview mode), no more shooting pictures blindly!
@@ -14,7 +18,7 @@
 * Visible overlays to identify operation modes and selected options
 * Stores the set configuration options across usages
 
-#Modes of operation
+# Modes of operation
 There are 2 modes of operation : 
 
 * 'Preview mode' (while recording or before taking a picture)
@@ -22,8 +26,8 @@ There are 2 modes of operation :
 
 Both modes can be controlled either handsfree and/or with the touchpad simultaneously (i.e. zoom with the touchpad, zoom more handsfree, take picture handsfree, save with the touchpad, and so on).
 
-##Hands-free
-###Preview mode
+## Hands-free
+### Preview mode
  1. Starts saying 'VGCamera', app will start in Preview mode
  2. Take picture with 'Ok Glass' -> 'Take a picture' as usual
  3. Start video recording with 'Ok Glass' -> 'Record a video' as usual
@@ -37,15 +41,15 @@ Both modes can be controlled either handsfree and/or with the touchpad simultane
  10. Toggle Quality High/Low with 'Ok glass' -> 'Options' -> 'Quality'
  11. Close app with 'Close'
 
-###Taken mode
+### Taken mode
 If Autosave is not set, after taking a picture (or video recording has been stopped), saying 'Ok Glass' you're presented with another menu which allows to:
 
 1. 'Save' : save the taken media
 2. 'Discard': discard the taken media and get back to preview mode
 3. 'Share': share the taken media on social networks / email
 
-##Touchpad
-###Preview mode
+## Touchpad
+### Preview mode
 1. Single finger tap on the touchpad shows scrollable configuration toggles for Geotagging, Autosave, Max zoom, Smooth zoom and Overlays (Only on autosave, look 6)
 2. Swipe left/right zooms in/out
 3. Press on the camera button to take a photo
@@ -53,13 +57,13 @@ If Autosave is not set, after taking a picture (or video recording has been stop
 5. Tap touchpad to stop recording if recording a video
 6. If not autosaving and while recording only, tap on the touchpad to save taken picture or video (or swipe down to delete)
 
-###Taken mode
+### Taken mode
 If Autosave is not set, after taking a picture (or video recording has been stopped), single tapping the touchpad you're presented with scrollable cards to Save, Discard or Share the taken media.
 
-#Currently implemented:
+# Currently implemented:
 * Everything is fully functional for taking pictures and recording videos (saved in /sdcard/DCIM/Camera), but no display and share yet
 
-#TODO:
+# TODO:
 * Sharing
 * Find a way to use built-in autobackup, unfortunately taking pictures using the Camera API seems to not trigger the autobackup correctly even when saving the media to the DCIM/Camera folder and triggering the MediaScanner to refresh. If some Google engineer reads, please please please tell me how to overcome this, there's a long standing bug filed (https://code.google.com/p/google-glass-api/issues/detail?id=588). Or, i will simply do it my way and reverse your original camera app :)
 * Find a way to display the taken media in the timeline using the Mirror API (since Google removed the capability of simply creating static cards in the timeline). Or, i will revert to use my own internal viewer.
@@ -67,10 +71,10 @@ If Autosave is not set, after taking a picture (or video recording has been stop
 * Provide head-scrolling menus (at the moment, 'Ok google' menus are fixed to 6 elements and non scrollable)
 * Remove 'Ok google' and use custom commands ?
 
-#Compile with:
+# Compile with:
 The usual android studio (needs Android SDK 19 with the Glass Preview SDK)
 
-#Bye!
+# Bye!
 cowabunga, ciao, bacetti :)
 
 And please, Google .... you rock .... reconsider Glass, they're awesome!
